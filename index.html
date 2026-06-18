@@ -1,3 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>World Cup Penalty Shootout</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0b1a0e;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            max-height: 750px;
+            background: #1e3f20; 
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.7);
+        }
+
+        /* Screen Styles */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            background: linear-gradient(135deg, #124e28 0%, #072513 100%);
+            box-sizing: border-box;
+            padding: 20px;
+            text-align: center;
+            transition: opacity 0.3s ease;
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 5px;
+            margin-top: 0;
+            text-shadow: 0 3px 6px rgba(0,0,0,0.5);
+            color: #f7b500;
+            letter-spacing: 1px;
+        }
+
+        p { margin: 5px 0 20px 0; color: #ddd; font-size: 15px;}
+
+        /* Nation Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+            max-height: 420px;
+            overflow-y: auto;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .nation-btn {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 14px;
+            padding: 15px 5px;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nation-btn:active, .nation-btn.selected {
+            background: #f7b500;
+            color: #072513;
+            border-color: #fff;
+            transform: scale(0.95);
+            box-shadow: 0 0 12px rgba(247, 181, 0, 0.4);
+        }
+
+        .flag {
+            font-size: 32px;
+            line-height: 1;
+        }
+
+        /* UI elements */
+        button.action-btn {
+            background: #f7b500;
+            color: #072513;
+            border: none;
+            padding: 14px 45px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        button.action-btn:active {
+            transform: scale(0.98);
+        }
+
+        #ingameUI {
+            position: absolute;
+            top: 15px; width: 100%;
+            display: flex;
+            justify-content: space-around;
+            font-size: 15px;
+            font-weight: bold;
+            z-index: 5;
+            text-shadow: 1px 1px 4px #000;
+            pointer-events: none;
+            box-sizing: border-box;
+            padding: 0 10px;
+        }
+
+        #ingameUI div {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #canvasContainer {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 1;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 35px;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.85);
+            text-shadow: 1px 1px 3px #000;
+            pointer-events: none;
+            z-index: 5;
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.6; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        
+        <div id="selectorScreen" class="screen">
+            <h1>WORLD CUP 2026</h1>
+            <p>Select your nation to take the pitch</p>
+            <div class="grid" id="nationGrid"></div>
+            <button class="action-btn" id="startBtn" disabled style="opacity: 0.4;">PLAY</button>
+        </div>
+
+        <div id="ingameUI">
+            <div>TEAM: <span id="uiTeam" style="color: #f7b500;">---</span></div>
+            <div>SCORE: <span id="uiScore" style="color: #4CD964;">0</span></div>
+            <div>STREAK: <span id="uiStreak" style="color: #5ac8fa;">0</span></div>
+        </div>
+        <div id="instructions">Flick the ball fast towards the net!</div>
+        
+        <div id="canvasContainer">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <div id="gameOverScreen" class="screen" style="display: none;">
+            <h1 style="color: #ff3333; text-shadow: 0 0 10px rgba(255,51,51,0.3);">OUT OF THE CUP!</h1>
+            <p id="finalScoreText" style="font-size: 18px;">You scored 0 penalties.</p>
+            <button class="action-btn" onclick="showSelector()">TRY AGAIN</button>
+        </div>
+
+    </div>
+
 const nations = [
             { name: 'Argentina', flag: '🇦🇷', color: '#74ACDF' },
             { name: 'Brazil', flag: '🇧🇷', color: '#009c3b' },
@@ -297,3 +503,5 @@ const nations = [
         }
 
         resizeCanvas();
+</body>
+</html>
