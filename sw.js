@@ -8,7 +8,6 @@ const ASSETS = [
   './icon-512.png'
 ];
 
-// Install Service Worker and cache all vital game assets
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -17,7 +16,6 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// Activate Worker and clear old versions if you update the code
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -32,7 +30,6 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Network-falling-back-to-cache strategy for fast performance
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request).catch(() => {
