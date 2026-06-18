@@ -30,7 +30,6 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.7);
         }
 
-        /* Screen Styles */
         .screen {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -57,7 +56,6 @@
 
         p { margin: 5px 0 20px 0; color: #ddd; font-size: 15px;}
 
-        /* Nation Grid */
         .grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -93,12 +91,20 @@
             box-shadow: 0 0 12px rgba(247, 181, 0, 0.4);
         }
 
-        .flag {
-            font-size: 32px;
-            line-height: 1;
+        .flag-tag {
+            font-size: 14px;
+            background: rgba(255,255,255,0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            color: #fff;
         }
 
-        /* UI elements */
+        .nation-btn.selected .flag-tag {
+            background: #072513;
+            color: #f7b500;
+        }
+
         button.action-btn {
             background: #f7b500;
             color: #072513;
@@ -113,10 +119,6 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             transition: all 0.2s;
-        }
-
-        button.action-btn:active {
-            transform: scale(0.98);
         }
 
         #ingameUI {
@@ -190,7 +192,7 @@
             <div>SCORE: <span id="uiScore" style="color: #4CD964;">0</span></div>
             <div>STREAK: <span id="uiStreak" style="color: #5ac8fa;">0</span></div>
         </div>
-        <div id="instructions">Flick the ball fast towards the net!</div>
+        <div id="instructions">Flick towards the corners to beat the keeper!</div>
         
         <div id="canvasContainer">
             <canvas id="gameCanvas"></canvas>
@@ -204,16 +206,126 @@
 
     </div>
 
-const nations = [
-            { name: 'Argentina', flag: '🇦🇷', color: '#74ACDF' },
-            { name: 'Brazil', flag: '🇧🇷', color: '#009c3b' },
-            { name: 'England', flag: '🏴%9F%8F%B4%F3%A0%81%A7%F3%A0%81%AC%F3%A0%81%A6%F3%A0%81%AF%F3%A0%81%B4%F3%A0%81%BF', color: '#ce1124' },
-            { name: 'France', flag: '🇫🇷', color: '#002395' },
-            { name: 'Germany', flag: '🇩🇪', color: '#111111' },
-            { name: 'Spain', flag: '🇪🇸', color: '#c60b1e' },
-            { name: 'USA', flag: '🇺🇸', color: '#0a3161' },
-            { name: 'Mexico', flag: '🇲🇽', color: '#006847' },
-            { name: 'Portugal', flag: '🇵🇹', color: '#ff0000' }
+    <script>
+        // --- SYNTHESIZED SYNTH AUDIO ENGINE ---
+        const SoundFX = {
+            ctx: null,
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+
+            playKick() {
+                this.init();
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.12);
+
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            },
+
+            playSave() {
+                this.init();
+                // Create custom White Noise cluster buffer to simulate impact texture
+                let bufferSize = this.ctx.sampleRate * 0.15;
+                let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                let data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                let noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                let filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(350, this.ctx.currentTime);
+
+                let gain = this.ctx.createGain();
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+                noise.start();
+                noise.stop(this.ctx.currentTime + 0.15);
+            },
+
+            playGoal() {
+                this.init();
+                let now = this.ctx.currentTime;
+                
+                // Play a celebratory bright chord stack
+                [440, 554, 659].forEach((freq, index) => {
+                    let osc = this.ctx.createOscillator();
+                    let gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+                    osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.4);
+
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                });
+            },
+
+            playGameOver() {
+                this.init();
+                let osc = this.ctx.createOscillator();
+                let gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(70, this.ctx.currentTime + 0.6);
+
+                let filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(300, this.ctx.currentTime);
+                
+                osc.disconnect(gain);
+                osc.connect(filter);
+                filter.connect(gain);
+
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.6);
+            }
+        };
+
+        // --- GAME SYSTEM CODE ---
+        const nations = [
+            { name: 'Argentina', tag: 'ARG', color: '#74ACDF' },
+            { name: 'Brazil', tag: 'BRA', color: '#009c3b' },
+            { name: 'England', tag: 'ENG', color: '#ce1124' },
+            { name: 'France', tag: 'FRA', color: '#002395' },
+            { name: 'Germany', tag: 'GER', color: '#111111' },
+            { name: 'Spain', tag: 'ESP', color: '#c60b1e' },
+            { name: 'USA', tag: 'USA', color: '#0a3161' },
+            { name: 'Mexico', tag: 'MEX', color: '#006847' },
+            { name: 'Portugal', tag: 'POR', color: '#ff0000' }
         ];
 
         let selectedNation = null;
@@ -226,7 +338,7 @@ const nations = [
         nations.forEach(nation => {
             const btn = document.createElement('div');
             btn.className = 'nation-btn';
-            btn.innerHTML = `<span class="flag">${nation.flag}</span><span>${nation.name}</span>`;
+            btn.innerHTML = `<span class="flag-tag">${nation.tag}</span><span>${nation.name}</span>`;
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.nation-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
@@ -239,7 +351,6 @@ const nations = [
 
         startBtn.addEventListener('click', startGame);
 
-        // --- ENGINE & GAMEPLAY ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -265,21 +376,27 @@ const nations = [
                 startY: canvas.height - 120,
                 x: canvas.width / 2,
                 y: canvas.height - 120,
-                radius: 18,
-                vx: 0,
-                vy: 0,
-                baseRadius: 18
+                targetX: 0,
+                targetY: 0,
+                radius: 22,       
+                startRadius: 22,
+                targetRadius: 8,  
+                progress: 0,      
+                speed: 0.038,
+                bounceVx: 0,
+                bounceVy: 0
             };
 
-            // Dynamic scaling speed based on level streak
-            let baseKeeperSpeed = 3.5 + (streak * 0.7);
+            let gradualScalingFactor = Math.log1p(streak) * 0.35; 
+            let baseKeeperSpeed = 2.2 + gradualScalingFactor;
+
             keeper = {
                 x: canvas.width / 2,
                 y: 195,
-                w: 50, // Slightly wider presence to block high-velocity shots
+                w: 54, 
                 h: 70,
                 dir: Math.random() < 0.5 ? 1 : -1,
-                speed: Math.min(baseKeeperSpeed, 10), 
+                speed: Math.min(baseKeeperSpeed, 5.0), 
                 state: 'idling', 
                 targetX: canvas.width / 2
             };
@@ -287,7 +404,6 @@ const nations = [
             gameState = 'aiming';
         }
 
-        // Touch & Mouse Support (Flick Framework)
         let touchStart = { x: 0, y: 0 };
         let touchTime = 0;
         
@@ -300,208 +416,10 @@ const nations = [
 
         function handleEnd(x, y) {
             if (gameState !== 'aiming') return;
+            
             let diffX = x - touchStart.x;
             let diffY = y - touchStart.y;
             let duration = Date.now() - touchTime;
 
-            // Ensure it's a quick forward flick gesture
-            if (diffY < -40 && duration < 400) { 
-                ball.vx = diffX * 0.05;
-                ball.vy = diffY * 0.06;
-                gameState = 'shooting';
-
-                keeper.state = 'diving';
-                
-                // Intelligently dive closer towards the actual landing sector of the shot
-                let finalExpectedBallX = ball.x + (ball.vx * ((goal.y - ball.y) / ball.vy));
-                let errorMargin = (Math.random() * 60 - 30); // Dynamic accuracy variation
-                keeper.targetX = Math.max(goal.x, Math.min(goal.x + goal.w, finalExpectedBallX + errorMargin));
-            }
-        }
-
-        canvas.addEventListener('touchstart', (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY));
-        canvas.addEventListener('touchend', (e) => handleEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY));
-        
-        canvas.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
-        canvas.addEventListener('mouseup', (e) => handleEnd(e.clientX, e.clientY));
-
-        function update() {
-            if (gameState === 'aiming') {
-                keeper.x += keeper.speed * keeper.dir;
-                if (keeper.x - keeper.w/2 < goal.x || keeper.x + keeper.w/2 > goal.x + goal.w) {
-                    keeper.dir *= -1;
-                    keeper.x = keeper.x - keeper.w/2 < goal.x ? goal.x + keeper.w/2 : goal.x + goal.w - keeper.w/2;
-                }
-            }
-
-            if (gameState === 'shooting') {
-                // Save previous coordinates for swept line check segment tracking
-                let prevX = ball.x;
-                let prevY = ball.y;
-
-                ball.x += ball.vx;
-                ball.y += ball.vy;
-                
-                // 3D Matrix Perspective Scaling Simulation
-                if (ball.radius > 9) {
-                    ball.radius -= 0.18;
-                }
-
-                if (keeper.state === 'diving') {
-                    keeper.x += (keeper.targetX - keeper.x) * 0.22; // Snappier dive response
-                }
-
-                // FIX: Continuous collision sweeping check across the keeper line segment plane
-                let crossedKeeperY = (prevY > keeper.y && ball.y <= keeper.y) || 
-                                     (prevY <= keeper.y && ball.y >= keeper.y) ||
-                                     (Math.abs(ball.y - keeper.y) < keeper.h/2);
-
-                if (crossedKeeperY) {
-                    // Check horizontal position match relative to keeper current bounding dimensions
-                    if (ball.x >= keeper.x - keeper.w/2 - ball.radius && 
-                        ball.x <= keeper.x + keeper.w/2 + ball.radius) {
-                        processResult(false); // Saved by Goalkeeper!
-                        return;
-                    }
-                }
-
-                // Check Goal Line Boundary crossing if it bypassed goalkeeper save hitbox
-                if (ball.y <= goal.y + goal.h && ball.y >= goal.y - 10) {
-                    if (ball.x >= goal.x && ball.x <= goal.x + goal.w) {
-                        processResult(true); // Goal!
-                    } else {
-                        processResult(false); // Wide/Out of bounds
-                    }
-                }
-                else if (ball.y < goal.y - 10) {
-                    processResult(false); // Over crossbar
-                }
-            }
-        }
-
-        function draw() {
-            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            grad.addColorStop(0, '#143516');
-            grad.addColorStop(0.5, '#1e3f20');
-            grad.addColorStop(1, '#27542a');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-            ctx.lineWidth = 4;
-            ctx.strokeRect(canvas.width * 0.05, -50, canvas.width * 0.9, goal.y + 240);
-            
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.beginPath();
-            ctx.arc(canvas.width/2, canvas.height - 120, 6, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-            ctx.lineWidth = 6;
-            ctx.fillStyle = 'rgba(255,255,255,0.12)';
-            ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
-            ctx.strokeRect(goal.x, goal.y, goal.w, goal.h);
-
-            // Draw Goalkeeper
-            ctx.fillStyle = selectedNation ? selectedNation.color : '#ff5722'; 
-            ctx.fillRect(keeper.x - keeper.w/2, keeper.y - keeper.h/3, keeper.w, keeper.h * 0.7);
-            
-            ctx.fillStyle = '#111';
-            ctx.fillRect(keeper.x - keeper.w/2, keeper.y + keeper.h*0.2, keeper.w, 5);
-            
-            ctx.fillStyle = '#ffdbac';
-            ctx.beginPath();
-            ctx.arc(keeper.x, keeper.y - keeper.h/3 - 4, 11, 0, Math.PI*2);
-            ctx.fill();
-
-            // Ball Shadow Core
-            ctx.fillStyle = 'rgba(0,0,0,0.25)';
-            ctx.beginPath();
-            let shadowOffset = (canvas.height - ball.y) * 0.1;
-            ctx.arc(ball.x, ball.y + shadowOffset, ball.radius * 0.9, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Render Match Football
-            ctx.fillStyle = '#ffffff';
-            ctx.strokeStyle = '#222222';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, Math.max(ball.radius, 4), 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            
-            ctx.fillStyle = '#111';
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, Math.max(ball.radius * 0.35, 1.5), 0, Math.PI * 2);
-            ctx.fill();
-
-            if (gameState === 'result') {
-                ctx.fillStyle = feedbackColor;
-                ctx.font = 'bold 44px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = 'rgba(0,0,0,0.6)';
-                ctx.fillText(feedbackText, canvas.width / 2, canvas.height * 0.55);
-                ctx.shadowBlur = 0;
-            }
-        }
-
-        let feedbackText = "";
-        let feedbackColor = "#fff";
-
-        function processResult(isGoal) {
-            gameState = 'result';
-            if (isGoal) {
-                score++;
-                streak++;
-                feedbackText = "GOAL!";
-                feedbackColor = "#4CD964";
-                
-                document.getElementById('uiScore').innerText = score;
-                document.getElementById('uiStreak').innerText = streak;
-                
-                setTimeout(() => {
-                    initEntities();
-                }, 1400);
-            } else {
-                feedbackText = "SAVED / MISSED!";
-                feedbackColor = "#FF3B30";
-                setTimeout(endGame, 1400);
-            }
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            if (gameState !== 'over') {
-                requestAnimationFrame(gameLoop);
-            }
-        }
-
-        function startGame() {
-            document.getElementById('selectorScreen').style.display = 'none';
-            document.getElementById('uiTeam').innerText = selectedNation.flag + " " + selectedNation.name;
-            
-            score = 0;
-            streak = 0;
-            document.getElementById('uiScore').innerText = score;
-            document.getElementById('uiStreak').innerText = streak;
-            
-            initEntities();
-            gameLoop();
-        }
-
-        function endGame() {
-            gameState = 'over';
-            document.getElementById('finalScoreText').innerText = `You scored ${score} goals for ${selectedNation.name}!`;
-            document.getElementById('gameOverScreen').style.display = 'flex';
-        }
-
-        function showSelector() {
-            document.getElementById('gameOverScreen').style.display = 'none';
-            document.getElementById('selectorScreen').style.display = 'flex';
-        }
-
-        resizeCanvas();
-</body>
-</html>
+            if (diffY < -30 && duration < 400) { 
+                // Play dynamic kick audio trigger
