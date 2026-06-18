@@ -423,3 +423,227 @@
 
             if (diffY < -30 && duration < 400) { 
                 // Play dynamic kick audio trigger
+                SoundFX.playKick();
+
+                ball.targetX = ball.startX + (diffX * 1.3);
+                ball.targetY = ball.startY + (diffY * 1.1);
+                
+                ball.targetY = Math.max(goal.y + 10, Math.min(goal.y + goal.h - 10, ball.targetY));
+                ball.targetX = Math.max(goal.x - 30, Math.min(goal.x + goal.w + 30, ball.targetX));
+
+                ball.progress = 0;
+                gameState = 'shooting';
+                keeper.state = 'diving';
+                
+                let errorMargin = (Math.random() * 80 - 40); 
+                keeper.targetX = Math.max(goal.x + 10, Math.min(goal.x + goal.w - 10, ball.targetX + errorMargin));
+            }
+        }
+
+        canvas.addEventListener('touchstart', (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY));
+        canvas.addEventListener('touchend', (e) => handleEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY));
+        
+        canvas.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
+        canvas.addEventListener('mouseup', (e) => handleEnd(e.clientX, e.clientY));
+
+        function update() {
+            if (gameState === 'aiming') {
+                keeper.x += keeper.speed * keeper.dir;
+                if (keeper.x - keeper.w/2 < goal.x || keeper.x + keeper.w/2 > goal.x + goal.w) {
+                    keeper.dir *= -1;
+                    keeper.x = keeper.x - keeper.w/2 < goal.x ? goal.x + keeper.w/2 : goal.x + goal.w - keeper.w/2;
+                }
+            }
+
+            if (gameState === 'shooting') {
+                ball.progress += ball.speed;
+                if (ball.progress > 1) ball.progress = 1;
+
+                ball.x = ball.startX + (ball.targetX - ball.startX) * ball.progress;
+                ball.y = ball.startY + (ball.targetY - ball.startY) * ball.progress;
+                ball.radius = ball.startRadius + (ball.targetRadius - ball.startRadius) * ball.progress;
+
+                if (keeper.state === 'diving') {
+                    keeper.x += (keeper.targetX - keeper.x) * 0.03; 
+                }
+
+                if (ball.progress >= 1) {
+                    let hitKeeperWidth = keeper.w / 2 + 5; 
+                    if (ball.x >= keeper.x - hitKeeperWidth && ball.x <= keeper.x + hitKeeperWidth) {
+                        // Play glove intercept sound effect
+                        SoundFX.playSave();
+                        
+                        gameState = 'rebounding';
+                        let hitOffset = (ball.x - keeper.x) / hitKeeperWidth; 
+                        ball.bounceVx = hitOffset * 4;   
+                        ball.bounceVy = 5.5;             
+                        return;
+                    }
+
+                    if (ball.x >= goal.x && ball.x <= goal.x + goal.w && ball.y >= goal.y && ball.y <= goal.y + goal.h) {
+                        processResult(true); 
+                    } else {
+                        processResult(false); 
+                    }
+                    return;
+                }
+            }
+
+            if (gameState === 'rebounding') {
+                ball.x += ball.bounceVx;
+                ball.y += ball.bounceVy;
+                
+                if (ball.radius < ball.startRadius * 0.8) {
+                    ball.radius += 0.4;
+                }
+
+                ball.bounceVx *= 0.98;
+                ball.bounceVy *= 0.95;
+
+                if (ball.bounceVy < 0.8) {
+                    processResult(false);
+                }
+            }
+        }
+
+        function draw() {
+            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#143516');
+            grad.addColorStop(0.5, '#1e3f20');
+            grad.addColorStop(1, '#27542a');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.05, goal.y + goal.h);
+            ctx.lineTo(0, canvas.height);
+            ctx.moveTo(canvas.width * 0.95, goal.y + goal.h);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.stroke();
+            
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.beginPath();
+            ctx.arc(canvas.width/2, canvas.height - 120, 7, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+            ctx.lineWidth = 6;
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+            ctx.strokeRect(goal.x, goal.y, goal.w, goal.h);
+
+            ctx.fillStyle = selectedNation ? selectedNation.color : '#ff5722'; 
+            ctx.fillRect(keeper.x - keeper.w/2, keeper.y - 10, keeper.w, 55); 
+            
+            ctx.fillStyle = '#111';
+            ctx.fillRect(keeper.x - keeper.w/2, keeper.y + 25, keeper.w, 6);
+            
+            ctx.fillStyle = '#ffdbac';
+            ctx.beginPath();
+            ctx.arc(keeper.x, keeper.y - 20, 12, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            let shadowY;
+            if (gameState === 'rebounding') {
+                shadowY = ball.y + 15; 
+            } else {
+                shadowY = ball.startY + ((goal.y + goal.h) - ball.startY) * ball.progress;
+            }
+            ctx.arc(ball.x, shadowY, ball.radius * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#222222';
+            ctx.lineWidth = Math.max(1.5, ball.radius * 0.1);
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, Math.max(ball.radius, 2), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.fillStyle = '#111';
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, Math.max(ball.radius * 0.3, 1), 0, Math.PI * 2);
+            ctx.fill();
+
+            if (gameState === 'result') {
+                ctx.fillStyle = feedbackColor;
+                ctx.font = 'bold 44px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.fillText(feedbackText, canvas.width / 2, canvas.height * 0.55);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        let feedbackText = "";
+        let feedbackColor = "#fff";
+
+        function processResult(isGoal) {
+            gameState = 'result';
+            if (isGoal) {
+                SoundFX.playGoal(); // Trigger celebration tune
+                
+                score++;
+                streak++;
+                feedbackText = "GOAL!";
+                feedbackColor = "#4CD964";
+                
+                document.getElementById('uiScore').innerText = score;
+                document.getElementById('uiStreak').innerText = streak;
+                
+                setTimeout(() => {
+                    initEntities();
+                }, 1400);
+            } else {
+                SoundFX.playGameOver(); // Trigger depressing fail sweep
+                
+                feedbackText = "SAVED!";
+                feedbackColor = "#FF3B30";
+                setTimeout(endGame, 1400);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            if (gameState !== 'over') {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function startGame() {
+            // Prime audio context on user interaction to bypass modern browser autoplay blocks
+            SoundFX.init();
+
+            document.getElementById('selectorScreen').style.display = 'none';
+            document.getElementById('uiTeam').innerText = selectedNation.tag + " " + selectedNation.name;
+            
+            score = 0;
+            streak = 0;
+            document.getElementById('uiScore').innerText = score;
+            document.getElementById('uiStreak').innerText = streak;
+            
+            initEntities();
+            gameLoop();
+        }
+
+        function endGame() {
+            gameState = 'over';
+            document.getElementById('finalScoreText').innerText = `You scored ${score} goals for ${selectedNation.name}!`;
+            document.getElementById('gameOverScreen').style.display = 'flex';
+        }
+
+        function showSelector() {
+            document.getElementById('gameOverScreen').style.display = 'none';
+            document.getElementById('selectorScreen').style.display = 'flex';
+        }
+
+        resizeCanvas();
+    </script>
+</body>
+</html>
