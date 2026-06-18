@@ -180,6 +180,8 @@
 
     <div id="gameContainer">
         
+        <audio id="bgMusic" src="bgm.mp3" loop></audio>
+
         <div id="selectorScreen" class="screen">
             <h1>WORLD CUP 2026</h1>
             <p>Select your nation to take the pitch</p>
@@ -207,13 +209,31 @@
     </div>
 
     <script>
-        // --- SYNTHESIZED SYNTH AUDIO ENGINE ---
+        // --- AUDIO ENGINE ---
         const SoundFX = {
             ctx: null,
+            bgAudio: null,
 
             init() {
                 if (!this.ctx) {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (!this.bgAudio) {
+                    this.bgAudio = document.getElementById('bgMusic');
+                    this.bgAudio.volume = 0.4; // Keep background music lower than sound effects
+                }
+            },
+
+            startMusic() {
+                this.init();
+                // Play music safely following browser user interaction requirements
+                this.bgAudio.play().catch(err => console.log("Music waiting for interaction."));
+            },
+
+            stopMusic() {
+                if (this.bgAudio) {
+                    this.bgAudio.pause();
+                    this.bgAudio.currentTime = 0;
                 }
             },
 
@@ -237,7 +257,6 @@
 
             playSave() {
                 this.init();
-                // Create custom White Noise cluster buffer to simulate impact texture
                 let bufferSize = this.ctx.sampleRate * 0.15;
                 let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 let data = buffer.getChannelData(0);
@@ -269,7 +288,6 @@
                 this.init();
                 let now = this.ctx.currentTime;
                 
-                // Play a celebratory bright chord stack
                 [440, 554, 659].forEach((freq, index) => {
                     let osc = this.ctx.createOscillator();
                     let gain = this.ctx.createGain();
@@ -340,6 +358,8 @@
             btn.className = 'nation-btn';
             btn.innerHTML = `<span class="flag-tag">${nation.tag}</span><span>${nation.name}</span>`;
             btn.addEventListener('click', () => {
+                // Initialize audio context early on country select to clear browser rules safely
+                SoundFX.init();
                 document.querySelectorAll('.nation-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
                 selectedNation = nation;
@@ -422,7 +442,6 @@
             let duration = Date.now() - touchTime;
 
             if (diffY < -30 && duration < 400) { 
-                // Play dynamic kick audio trigger
                 SoundFX.playKick();
 
                 ball.targetX = ball.startX + (diffX * 1.3);
@@ -470,9 +489,7 @@
                 if (ball.progress >= 1) {
                     let hitKeeperWidth = keeper.w / 2 + 5; 
                     if (ball.x >= keeper.x - hitKeeperWidth && ball.x <= keeper.x + hitKeeperWidth) {
-                        // Play glove intercept sound effect
                         SoundFX.playSave();
-                        
                         gameState = 'rebounding';
                         let hitOffset = (ball.x - keeper.x) / hitKeeperWidth; 
                         ball.bounceVx = hitOffset * 4;   
@@ -586,7 +603,7 @@
         function processResult(isGoal) {
             gameState = 'result';
             if (isGoal) {
-                SoundFX.playGoal(); // Trigger celebration tune
+                SoundFX.playGoal();
                 
                 score++;
                 streak++;
@@ -600,7 +617,8 @@
                     initEntities();
                 }, 1400);
             } else {
-                SoundFX.playGameOver(); // Trigger depressing fail sweep
+                SoundFX.stopMusic();     // Kill loop background track on match defeat
+                SoundFX.playGameOver();  // Run arcade loss tone code
                 
                 feedbackText = "SAVED!";
                 feedbackColor = "#FF3B30";
@@ -617,8 +635,8 @@
         }
 
         function startGame() {
-            // Prime audio context on user interaction to bypass modern browser autoplay blocks
-            SoundFX.init();
+            // Safe initialization trigger for your physical music & synthesized channel
+            SoundFX.startMusic();
 
             document.getElementById('selectorScreen').style.display = 'none';
             document.getElementById('uiTeam').innerText = selectedNation.tag + " " + selectedNation.name;
