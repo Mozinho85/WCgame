@@ -142,6 +142,17 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
 
+        /* Temporary Debug Text styling to track music state */
+        #audioDebug {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            z-index: 100;
+            pointer-events: none;
+        }
+
         #canvasContainer {
             width: 100%;
             height: 100%;
@@ -180,7 +191,9 @@
 
     <div id="gameContainer">
         
-        <audio id="bgMusic" src="bgm.mp3" loop></audio>
+        <div id="audioDebug">Audio Status: Initializing...</div>
+
+        <audio id="bgMusic" src="bgm.mp3" loop preload="auto"></audio>
 
         <div id="selectorScreen" class="screen">
             <h1>WORLD CUP 2026</h1>
@@ -209,6 +222,8 @@
     </div>
 
     <script>
+        const debugDiv = document.getElementById('audioDebug');
+
         // --- AUDIO ENGINE ---
         const SoundFX = {
             ctx: null,
@@ -220,20 +235,38 @@
                 }
                 if (!this.bgAudio) {
                     this.bgAudio = document.getElementById('bgMusic');
-                    this.bgAudio.volume = 0.4; // Keep background music lower than sound effects
+                    this.bgAudio.volume = 0.4; 
+                    
+                    // Wire up internal diagnostic reporting
+                    this.bgAudio.addEventListener('playing', () => debugDiv.innerText = "Audio Status: Playing bgm.mp3");
+                    this.bgAudio.addEventListener('error', (e) => debugDiv.innerText = "Audio Status: Error loading bgm.mp3 file!");
+                }
+                
+                // If browser suspended the context due to autoplay limits, wake it up
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
                 }
             },
 
             startMusic() {
                 this.init();
-                // Play music safely following browser user interaction requirements
-                this.bgAudio.play().catch(err => console.log("Music waiting for interaction."));
+                debugDiv.innerText = "Audio Status: Attempting to play...";
+                
+                // standard HTML5 media promise pattern
+                let playPromise = this.bgAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(err => {
+                        debugDiv.innerText = "Audio Status: Blocked by browser browser policy. Click screen!";
+                        console.log("Playback engine waiting for structural user gesture loop.");
+                    });
+                }
             },
 
             stopMusic() {
                 if (this.bgAudio) {
                     this.bgAudio.pause();
                     this.bgAudio.currentTime = 0;
+                    debugDiv.innerText = "Audio Status: Stopped";
                 }
             },
 
@@ -358,8 +391,9 @@
             btn.className = 'nation-btn';
             btn.innerHTML = `<span class="flag-tag">${nation.tag}</span><span>${nation.name}</span>`;
             btn.addEventListener('click', () => {
-                // Initialize audio context early on country select to clear browser rules safely
-                SoundFX.init();
+                // FORCE TRACK PLAYBACK AT FIRST POSSIBLE CLICK EXTRA REINFORCEMENT
+                SoundFX.startMusic();
+                
                 document.querySelectorAll('.nation-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
                 selectedNation = nation;
@@ -617,8 +651,8 @@
                     initEntities();
                 }, 1400);
             } else {
-                SoundFX.stopMusic();     // Kill loop background track on match defeat
-                SoundFX.playGameOver();  // Run arcade loss tone code
+                SoundFX.stopMusic();     
+                SoundFX.playGameOver();  
                 
                 feedbackText = "SAVED!";
                 feedbackColor = "#FF3B30";
@@ -635,7 +669,6 @@
         }
 
         function startGame() {
-            // Safe initialization trigger for your physical music & synthesized channel
             SoundFX.startMusic();
 
             document.getElementById('selectorScreen').style.display = 'none';
