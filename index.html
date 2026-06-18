@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>World Cup Penalty Shootout</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#124e28">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <style>
         body {
             margin: 0;
@@ -142,7 +148,6 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Temporary Debug Text styling to track music state */
         #audioDebug {
             position: absolute;
             bottom: 5px;
@@ -237,12 +242,10 @@
                     this.bgAudio = document.getElementById('bgMusic');
                     this.bgAudio.volume = 0.4; 
                     
-                    // Wire up internal diagnostic reporting
                     this.bgAudio.addEventListener('playing', () => debugDiv.innerText = "Audio Status: Playing bgm.mp3");
                     this.bgAudio.addEventListener('error', (e) => debugDiv.innerText = "Audio Status: Error loading bgm.mp3 file!");
                 }
                 
-                // If browser suspended the context due to autoplay limits, wake it up
                 if (this.ctx && this.ctx.state === 'suspended') {
                     this.ctx.resume();
                 }
@@ -252,12 +255,10 @@
                 this.init();
                 debugDiv.innerText = "Audio Status: Attempting to play...";
                 
-                // standard HTML5 media promise pattern
                 let playPromise = this.bgAudio.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(err => {
-                        debugDiv.innerText = "Audio Status: Blocked by browser browser policy. Click screen!";
-                        console.log("Playback engine waiting for structural user gesture loop.");
+                        debugDiv.innerText = "Audio Status: Blocked by browser policy. Click screen!";
                     });
                 }
             },
@@ -391,7 +392,6 @@
             btn.className = 'nation-btn';
             btn.innerHTML = `<span class="flag-tag">${nation.tag}</span><span>${nation.name}</span>`;
             btn.addEventListener('click', () => {
-                // FORCE TRACK PLAYBACK AT FIRST POSSIBLE CLICK EXTRA REINFORCEMENT
                 SoundFX.startMusic();
                 
                 document.querySelectorAll('.nation-btn').forEach(b => b.classList.remove('selected'));
@@ -558,75 +558,181 @@
         }
 
         function draw() {
-            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            grad.addColorStop(0, '#143516');
-            grad.addColorStop(0.5, '#1e3f20');
-            grad.addColorStop(1, '#27542a');
-            ctx.fillStyle = grad;
+            // 1. THE PITCH PERSPECTIVE
+            let pitchGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            pitchGrad.addColorStop(0, '#0a230c'); 
+            pitchGrad.addColorStop(0.3, '#113b15');
+            pitchGrad.addColorStop(1, '#1e5e25');   
+            ctx.fillStyle = pitchGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            // Striped Grass Pattern
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+            for (let i = 0; i < 6; i++) {
+                if (i % 2 === 0) {
+                    ctx.beginPath();
+                    let topY = goal.y + goal.h + (i * 40);
+                    let botY = goal.y + goal.h + ((i + 1) * 70);
+                    ctx.moveTo(0, topY);
+                    ctx.lineTo(canvas.width, topY);
+                    ctx.lineTo(canvas.width, botY);
+                    ctx.lineTo(0, botY);
+                    ctx.fill();
+                }
+            }
+
+            // 2. STADIUM WHITE LINES
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
             ctx.lineWidth = 3;
+            
             ctx.beginPath();
-            ctx.moveTo(canvas.width * 0.05, goal.y + goal.h);
-            ctx.lineTo(0, canvas.height);
-            ctx.moveTo(canvas.width * 0.95, goal.y + goal.h);
-            ctx.lineTo(canvas.width, canvas.height);
+            ctx.moveTo(goal.x - 40, goal.y + goal.h);
+            ctx.lineTo(0, canvas.height - 50);
+            ctx.moveTo(goal.x + goal.w + 40, goal.y + goal.h);
+            ctx.lineTo(canvas.width, canvas.height - 50);
+            ctx.moveTo(0, canvas.height - 50);
+            ctx.lineTo(canvas.width, canvas.height - 50);
             ctx.stroke();
             
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
             ctx.beginPath();
-            ctx.arc(canvas.width/2, canvas.height - 120, 7, 0, Math.PI * 2);
+            ctx.arc(canvas.width/2, canvas.height - 120, 6, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-            ctx.lineWidth = 6;
-            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            // 3. THE GOAL NET DEPTH
+            let netShadow = ctx.createLinearGradient(0, goal.y, 0, goal.y + goal.h);
+            netShadow.addColorStop(0, 'rgba(0,0,0,0.6)');
+            netShadow.addColorStop(1, 'rgba(0,0,0,0.1)');
+            ctx.fillStyle = netShadow;
             ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
-            ctx.strokeRect(goal.x, goal.y, goal.w, goal.h);
 
-            ctx.fillStyle = selectedNation ? selectedNation.color : '#ff5722'; 
-            ctx.fillRect(keeper.x - keeper.w/2, keeper.y - 10, keeper.w, 55); 
-            
-            ctx.fillStyle = '#111';
-            ctx.fillRect(keeper.x - keeper.w/2, keeper.y + 25, keeper.w, 6);
-            
-            ctx.fillStyle = '#ffdbac';
+            // Net Grid Lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 1;
+            let meshSize = 10;
+            for (let x = goal.x; x <= goal.x + goal.w; x += meshSize) {
+                ctx.beginPath(); ctx.moveTo(x, goal.y); ctx.lineTo(x, goal.y + goal.h); ctx.stroke();
+            }
+            for (let y = goal.y; y <= goal.y + goal.h; y += meshSize) {
+                ctx.beginPath(); ctx.moveTo(goal.x, y); ctx.lineTo(goal.x + goal.w, y); ctx.stroke();
+            }
+
+            // Goalposts Frames
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(255,255,255,0.3)';
             ctx.beginPath();
-            ctx.arc(keeper.x, keeper.y - 20, 12, 0, Math.PI*2);
+            ctx.moveTo(goal.x, goal.y + goal.h);
+            ctx.lineTo(goal.x, goal.y); 
+            ctx.lineTo(goal.x + goal.w, goal.y); 
+            ctx.lineTo(goal.x + goal.w, goal.y + goal.h); 
+            ctx.stroke();
+            ctx.shadowBlur = 0; 
+
+            // 4. BALL DROP SHADOW
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.beginPath();
+            let shadowY;
+            let shadowScale;
+            if (gameState === 'rebounding') {
+                shadowY = ball.y + 25; 
+                shadowScale = Math.max(0.3, (1 - (ball.bounceVy / 10)));
+            } else {
+                shadowY = ball.startY + ((goal.y + goal.h + 10) - ball.startY) * ball.progress;
+                shadowScale = 1 - (ball.progress * 0.4);
+            }
+            ctx.ellipse(ball.x, shadowY, ball.radius * 1.1 * shadowScale, ball.radius * 0.4 * shadowScale, 0, 0, Math.PI * 2);
             ctx.fill();
+
+            // 5. GOALKEEPER DESIGN
+            let gkColor = selectedNation ? selectedNation.color : '#ff5722';
+            ctx.save();
+            ctx.translate(keeper.x, keeper.y);
 
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.beginPath();
-            let shadowY;
-            if (gameState === 'rebounding') {
-                shadowY = ball.y + 15; 
-            } else {
-                shadowY = ball.startY + ((goal.y + goal.h) - ball.startY) * ball.progress;
-            }
-            ctx.arc(ball.x, shadowY, ball.radius * 0.8, 0, Math.PI * 2);
+            ctx.ellipse(0, 52, keeper.w * 0.6, 10, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.fillStyle = '#ffffff';
-            ctx.strokeStyle = '#222222';
-            ctx.lineWidth = Math.max(1.5, ball.radius * 0.1);
+            // Boots & Socks
+            ctx.fillStyle = '#222'; 
+            ctx.fillRect(-18, 44, 10, 8);
+            ctx.fillRect(8, 44, 10, 8);
+            ctx.fillStyle = '#fff'; 
+            ctx.fillRect(-16, 32, 7, 12);
+            ctx.fillRect(9, 32, 7, 12);
+
+            // Kit Shorts & Torso
+            ctx.fillStyle = '#111111'; 
+            ctx.fillRect(-18, 20, 36, 14);
+            ctx.fillStyle = gkColor;
+            ctx.fillRect(-20, -15, 40, 35);
+
+            // Dynamic Diving Arms
+            ctx.fillStyle = gkColor;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            if (gameState === 'shooting' || keeper.state === 'diving') {
+                ctx.fillRect(-32, -10, 12, 10); 
+                ctx.fillRect(20, -10, 12, 10);  
+            } else {
+                ctx.fillRect(-28, -5, 9, 22);
+                ctx.fillRect(19, -5, 9, 22);
+            }
+
+            // Head and Face Elements
+            ctx.fillStyle = '#ffdbac';
             ctx.beginPath();
-            ctx.arc(ball.x, ball.y, Math.max(ball.radius, 2), 0, Math.PI * 2);
+            ctx.arc(0, -26, 11, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-8, -37, 16, 5);
+
+            ctx.restore();
+
+            // 6. SOCCER BALL WITH PANEL SPIN ENGINE
+            ctx.save();
+            ctx.translate(ball.x, ball.y);
+            let spinAngle = (ball.progress * 4.5); 
+            ctx.rotate(spinAngle);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = Math.max(1.5, ball.radius * 0.08);
+            ctx.beginPath();
+            ctx.arc(0, 0, Math.max(ball.radius, 3), 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             
-            ctx.fillStyle = '#111';
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, Math.max(ball.radius * 0.3, 1), 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillStyle = '#1a1a1a';
+            let r = ball.radius;
+            if (r > 4) {
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.32, 0, Math.PI * 2); 
+                ctx.fill();
 
+                ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+                ctx.lineWidth = Math.max(1, r * 0.05);
+                for (let a = 0; a < Math.PI * 2; a += (Math.PI * 2 / 5)) {
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(a) * (r * 0.32), Math.sin(a) * (r * 0.32));
+                    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+
+            // 7. RESULT INTERACTIVE TEXT
             if (gameState === 'result') {
                 ctx.fillStyle = feedbackColor;
                 ctx.font = 'bold 44px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = 'rgba(0,0,0,0.6)';
-                ctx.fillText(feedbackText, canvas.width / 2, canvas.height * 0.55);
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.fillText(feedbackText, canvas.width / 2, canvas.height * 0.52);
                 ctx.shadowBlur = 0;
             }
         }
@@ -695,6 +801,15 @@
         }
 
         resizeCanvas();
+
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker connected successfully.', reg))
+                    .catch(err => console.log('Service Worker connection blocked:', err));
+            });
+        }
     </script>
 </body>
 </html>
