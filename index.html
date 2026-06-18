@@ -67,7 +67,7 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
             width: 100%;
-            max-height: 420px;
+            max-height: 380px;
             overflow-y: auto;
             padding: 10px;
             box-sizing: border-box;
@@ -127,26 +127,67 @@
             transition: all 0.2s;
         }
 
-        #ingameUI {
+        /* DYNAMIC TURN DISPLAY STRIP */
+        #turnIndicator {
             position: absolute;
-            top: 15px; width: 100%;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            background: #f7b500;
+            color: #072513;
+            font-weight: bold;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+
+        /* TWIN SCOREBOARD */
+        #scoreboardUI {
+            position: absolute;
+            top: 55px; width: 100%;
             display: flex;
-            justify-content: space-around;
-            font-size: 15px;
+            justify-content: space-between;
+            font-size: 13px;
             font-weight: bold;
             z-index: 5;
             text-shadow: 1px 1px 4px #000;
             pointer-events: none;
             box-sizing: border-box;
-            padding: 0 10px;
+            padding: 0 15px;
         }
 
-        #ingameUI div {
-            background: rgba(0, 0, 0, 0.4);
-            padding: 6px 12px;
-            border-radius: 20px;
+        .player-board {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 12px;
+            border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.1);
+            width: 44%;
         }
+
+        .active-board {
+            border-color: #f7b500;
+            box-shadow: 0 0 10px rgba(247,181,0,0.3);
+        }
+
+        .dot-container {
+            display: flex;
+            gap: 4px;
+            margin-top: 6px;
+            justify-content: center;
+        }
+
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #555;
+            border: 1px solid #222;
+        }
+        .dot.goal { background: #4CD964; }
+        .dot.miss { background: #FF3B30; }
 
         #audioDebug {
             position: absolute;
@@ -201,27 +242,37 @@
         <audio id="bgMusic" src="bgm.mp3" loop preload="auto"></audio>
 
         <div id="selectorScreen" class="screen">
-            <h1>WORLD CUP 2026</h1>
+            <h1 id="selectionTitle">PLAYER 1 CHOOSE</h1>
             <p>Select your nation to take the pitch</p>
             <div class="grid" id="nationGrid"></div>
-            <button class="action-btn" id="startBtn" disabled style="opacity: 0.4;">PLAY</button>
+            <button class="action-btn" id="startBtn" disabled style="opacity: 0.4;">CONFIRM</button>
         </div>
 
-        <div id="ingameUI">
-            <div>TEAM: <span id="uiTeam" style="color: #f7b500;">---</span></div>
-            <div>SCORE: <span id="uiScore" style="color: #4CD964;">0</span></div>
-            <div>STREAK: <span id="uiStreak" style="color: #5ac8fa;">0</span></div>
+        <div id="turnIndicator">PLAYER 1 SHOOTING</div>
+
+        <div id="scoreboardUI">
+            <div id="p1Board" class="player-board active-board">
+                <div style="color: #f7b500;" id="p1Name">P1: ---</div>
+                <div>SCORE: <span id="p1Score" style="color: #4CD964;">0</span></div>
+                <div class="dot-container" id="p1Dots"></div>
+            </div>
+            <div id="p2Board" class="player-board">
+                <div style="color: #5ac8fa;" id="p2Name">P2: ---</div>
+                <div>SCORE: <span id="p2Score" style="color: #4CD964;">0</span></div>
+                <div class="dot-container" id="p2Dots"></div>
+            </div>
         </div>
-        <div id="instructions">Flick in a curve to add spin to the ball!</div>
+
+        <div id="instructions">Flick in a curve to bend your shot around the keeper!</div>
         
         <div id="canvasContainer">
             <canvas id="gameCanvas"></canvas>
         </div>
 
         <div id="gameOverScreen" class="screen" style="display: none;">
-            <h1 style="color: #ff3333; text-shadow: 0 0 10px rgba(255,51,51,0.3);">OUT OF THE CUP!</h1>
-            <p id="finalScoreText" style="font-size: 18px;">You scored 0 penalties.</p>
-            <button class="action-btn" onclick="showSelector()">TRY AGAIN</button>
+            <h1 id="winStatusText" style="color: #f7b500; text-shadow: 0 0 10px rgba(247,181,0,0.3);">PLAYER 1 WINS!</h1>
+            <p id="finalScoreText" style="font-size: 18px;">Final Scoreline: 3 - 2</p>
+            <button class="action-btn" onclick="resetToSelector()">PLAY AGAIN</button>
         </div>
 
     </div>
@@ -241,11 +292,9 @@
                 if (!this.bgAudio) {
                     this.bgAudio = document.getElementById('bgMusic');
                     this.bgAudio.volume = 0.4; 
-                    
                     this.bgAudio.addEventListener('playing', () => debugDiv.innerText = "Audio Status: Playing bgm.mp3");
                     this.bgAudio.addEventListener('error', (e) => debugDiv.innerText = "Audio Status: Error loading bgm.mp3 file!");
                 }
-                
                 if (this.ctx && this.ctx.state === 'suspended') {
                     this.ctx.resume();
                 }
@@ -253,13 +302,9 @@
 
             startMusic() {
                 this.init();
-                debugDiv.innerText = "Audio Status: Attempting to play...";
-                
                 let playPromise = this.bgAudio.play();
                 if (playPromise !== undefined) {
-                    playPromise.catch(err => {
-                        debugDiv.innerText = "Audio Status: Blocked by browser policy. Click screen!";
-                    });
+                    playPromise.catch(err => { debugDiv.innerText = "Audio Status: Context Blocked."; });
                 }
             },
 
@@ -267,7 +312,6 @@
                 if (this.bgAudio) {
                     this.bgAudio.pause();
                     this.bgAudio.currentTime = 0;
-                    debugDiv.innerText = "Audio Status: Stopped";
                 }
             },
 
@@ -275,18 +319,13 @@
                 this.init();
                 let osc = this.ctx.createOscillator();
                 let gain = this.ctx.createGain();
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-
+                osc.connect(gain); gain.connect(this.ctx.destination);
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(140, this.ctx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.12);
-
                 gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.12);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.12);
             },
 
             playSave() {
@@ -294,49 +333,29 @@
                 let bufferSize = this.ctx.sampleRate * 0.15;
                 let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 let data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-
-                let noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-
-                let filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(350, this.ctx.currentTime);
-
+                for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+                let noise = this.ctx.createBufferSource(); noise.buffer = buffer;
+                let filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(350, this.ctx.currentTime);
                 let gain = this.ctx.createGain();
-                
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-
+                noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
                 gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-
-                noise.start();
-                noise.stop(this.ctx.currentTime + 0.15);
+                noise.start(); noise.stop(this.ctx.currentTime + 0.15);
             },
 
             playGoal() {
                 this.init();
                 let now = this.ctx.currentTime;
-                
-                [440, 554, 659].forEach((freq, index) => {
+                [440, 554, 659].forEach((freq) => {
                     let osc = this.ctx.createOscillator();
                     let gain = this.ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(this.ctx.destination);
-
+                    osc.connect(gain); gain.connect(this.ctx.destination);
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(freq, now);
                     osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.4);
-
                     gain.gain.setValueAtTime(0.15, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-
-                    osc.start(now);
-                    osc.stop(now + 0.5);
+                    osc.start(now); osc.stop(now + 0.5);
                 });
             },
 
@@ -344,30 +363,19 @@
                 this.init();
                 let osc = this.ctx.createOscillator();
                 let gain = this.ctx.createGain();
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-
+                let filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.setValueAtTime(300, this.ctx.currentTime);
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(180, this.ctx.currentTime);
                 osc.frequency.linearRampToValueAtTime(70, this.ctx.currentTime + 0.6);
-
-                let filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(300, this.ctx.currentTime);
-                
-                osc.disconnect(gain);
-                osc.connect(filter);
-                filter.connect(gain);
-
+                osc.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
                 gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
-
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.6);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.6);
             }
         };
 
-        // --- GAME SYSTEM CODE ---
+        // --- CORE GEOMETRY & GAME ARRAYS ---
         const nations = [
             { name: 'Argentina', tag: 'ARG', color: '#74ACDF' },
             { name: 'Brazil', tag: 'BRA', color: '#009c3b' },
@@ -380,30 +388,60 @@
             { name: 'Portugal', tag: 'POR', color: '#ff0000' }
         ];
 
-        let selectedNation = null;
-        let score = 0;
-        let streak = 0;
+        // 2 Player Tournament Structural Globals
+        let player1Nation = null;
+        let player2Nation = null;
+        let setupPhase = 1; // 1 = P1 choosing, 2 = P2 choosing
+
+        let currentKicker = 1; // 1 or 2
+        let currentRound = 1;  // 1 to 5, then increments during sudden death
+        let isSuddenDeath = false;
+
+        let p1History = []; // Array of strings: 'goal' or 'miss'
+        let p2History = [];
+
+        let selectedNationTmp = null;
 
         const grid = document.getElementById('nationGrid');
         const startBtn = document.getElementById('startBtn');
+        const selectionTitle = document.getElementById('selectionTitle');
 
-        nations.forEach(nation => {
-            const btn = document.createElement('div');
-            btn.className = 'nation-btn';
-            btn.innerHTML = `<span class="flag-tag">${nation.tag}</span><span>${nation.name}</span>`;
-            btn.addEventListener('click', () => {
-                SoundFX.startMusic();
-                
-                document.querySelectorAll('.nation-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                selectedNation = nation;
-                startBtn.disabled = false;
-                startBtn.style.opacity = "1";
+        function buildSelectionGrid() {
+            grid.innerHTML = "";
+            nations.forEach(nation => {
+                // Avoid Player 2 mirror-selecting Player 1's side
+                if (setupPhase === 2 && player1Nation && player1Nation.tag === nation.tag) return;
+
+                const btn = document.createElement('div');
+                btn.className = 'nation-btn';
+                btn.innerHTML = `<span class="flag-tag">${nation.tag}</span><span>${nation.name}</span>`;
+                btn.addEventListener('click', () => {
+                    SoundFX.startMusic();
+                    document.querySelectorAll('.nation-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedNationTmp = nation;
+                    startBtn.disabled = false;
+                    startBtn.style.opacity = "1";
+                });
+                grid.appendChild(btn);
             });
-            grid.appendChild(btn);
-        });
+        }
 
-        startBtn.addEventListener('click', startGame);
+        startBtn.addEventListener('click', () => {
+            if (setupPhase === 1) {
+                player1Nation = selectedNationTmp;
+                setupPhase = 2;
+                selectedNationTmp = null;
+                startBtn.disabled = true;
+                startBtn.style.opacity = "0.4";
+                selectionTitle.innerText = "PLAYER 2 CHOOSE";
+                selectionTitle.style.color = "#5ac8fa";
+                buildSelectionGrid();
+            } else if (setupPhase === 2) {
+                player2Nation = selectedNationTmp;
+                startGame();
+            }
+        });
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -416,6 +454,8 @@
         resizeCanvas();
 
         let ball, keeper, goal, gameState;
+        let swipePoints = [];
+        let isTrackingSwipe = false;
         
         function initEntities() {
             goal = {
@@ -439,12 +479,13 @@
                 speed: 0.035,
                 bounceVx: 0,
                 bounceVy: 0,
-                spin: 0,          // Curve strength
-                curveOffsetX: 0   // Current dynamic bending pixel offset
+                spin: 0,          
+                curveOffsetX: 0   
             };
 
-            let gradualScalingFactor = Math.log1p(streak) * 0.35; 
-            let baseKeeperSpeed = 2.2 + gradualScalingFactor;
+            // Scale keeper speed gradually across sudden death stress builds
+            let speedScaler = Math.min(currentRound * 0.25, 2.5);
+            let baseKeeperSpeed = 2.4 + speedScaler;
 
             keeper = {
                 x: canvas.width / 2,
@@ -452,7 +493,7 @@
                 w: 54, 
                 h: 70,
                 dir: Math.random() < 0.5 ? 1 : -1,
-                speed: Math.min(baseKeeperSpeed, 5.0), 
+                speed: Math.min(baseKeeperSpeed, 5.2), 
                 state: 'idling', 
                 targetX: canvas.width / 2
             };
@@ -460,11 +501,22 @@
             gameState = 'aiming';
             swipePoints = [];
             isTrackingSwipe = false;
+
+            // Sync visual text engine indicators
+            let activeNation = (currentKicker === 1) ? player1Nation : player2Nation;
+            document.getElementById('turnIndicator').innerText = `PLAYER ${currentKicker} SHOOTING (${activeNation.tag})`;
+            document.getElementById('turnIndicator').style.background = (currentKicker === 1) ? "#f7b500" : "#5ac8fa";
+            
+            if (currentKicker === 1) {
+                document.getElementById('p1Board').classList.add('active-board');
+                document.getElementById('p2Board').classList.remove('active-board');
+            } else {
+                document.getElementById('p1Board').classList.remove('active-board');
+                document.getElementById('p2Board').classList.add('active-board');
+            }
         }
 
-        let swipePoints = [];
-        let isTrackingSwipe = false;
-        
+        // --- CONTROL HANDLING ---
         function handleStart(x, y) {
             if (gameState !== 'aiming') return;
             isTrackingSwipe = true;
@@ -474,8 +526,6 @@
         function handleMove(x, y) {
             if (!isTrackingSwipe || gameState !== 'aiming') return;
             swipePoints.push({ x: x, y: y, time: Date.now() });
-            
-            // Limit array storage size
             if (swipePoints.length > 40) swipePoints.shift();
         }
 
@@ -495,31 +545,20 @@
             if (diffY < -40 && duration < 400) { 
                 SoundFX.playKick();
 
-                // 1. Core Endpoints Setup
                 ball.targetX = ball.startX + (diffX * 1.3);
                 ball.targetY = ball.startY + (diffY * 1.1);
                 ball.targetY = Math.max(goal.y + 10, Math.min(goal.y + goal.h - 10, ball.targetY));
 
-                // 2. MAGNUS EFFECT / SPIN CALCULATION
-                // Find maximum deviation distance from a perfect linear swipe line
                 let maxDeviation = 0;
                 for (let i = 1; i < swipePoints.length - 1; i++) {
                     let p = swipePoints[i];
-                    // Standard perpendicular distance from point to line formula
                     let numerator = (last.y - first.y) * p.x - (last.x - first.x) * p.y + last.x * first.y - last.y * first.x;
                     let denominator = Math.sqrt(Math.pow(last.y - first.y, 2) + Math.pow(last.x - first.x, 2));
                     let distance = denominator !== 0 ? (numerator / denominator) : 0;
-                    
-                    if (Math.abs(distance) > Math.abs(maxDeviation)) {
-                        maxDeviation = distance;
-                    }
+                    if (Math.abs(distance) > Math.abs(maxDeviation)) maxDeviation = distance;
                 }
 
-                // Convert deviation space to horizontal target velocity alterations
-                // Negative deviation = curved clockwise; Positive = counter-clockwise
                 ball.spin = maxDeviation * -1.8; 
-
-                // Offset base target prediction by spin projection safely
                 ball.targetX += (ball.spin * 0.4);
                 ball.targetX = Math.max(goal.x - 35, Math.min(goal.x + goal.w + 35, ball.targetX));
 
@@ -532,21 +571,14 @@
             }
         }
 
-        // Event Listener Mapping
-        canvas.addEventListener('touchstart', (e) => {
-            let t = e.touches[0];
-            handleStart(t.clientX, t.clientY);
-        });
-        canvas.addEventListener('touchmove', (e) => {
-            let t = e.touches[0];
-            handleMove(t.clientX, t.clientY);
-        });
+        canvas.addEventListener('touchstart', (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY));
+        canvas.addEventListener('touchmove', (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY));
         canvas.addEventListener('touchend', () => handleEnd());
-        
         canvas.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
         canvas.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
         canvas.addEventListener('mouseup', () => handleEnd());
 
+        // --- ENGINE MATH UPDATES ---
         function update() {
             if (gameState === 'aiming') {
                 keeper.x += keeper.speed * keeper.dir;
@@ -560,11 +592,9 @@
                 ball.progress += ball.speed;
                 if (ball.progress > 1) ball.progress = 1;
 
-                // Magnus Effect Curve Calculation (Sine arc path blend multiplier)
                 let curveFactor = Math.sin(ball.progress * Math.PI); 
                 ball.curveOffsetX = ball.spin * curveFactor;
 
-                // Base Linear Interpolation + Curve Offset integration
                 ball.x = (ball.startX + (ball.targetX - ball.startX) * ball.progress) + ball.curveOffsetX;
                 ball.y = ball.startY + (ball.targetY - ball.startY) * ball.progress;
                 ball.radius = ball.startRadius + (ball.targetRadius - ball.startRadius) * ball.progress;
@@ -594,200 +624,94 @@
             }
 
             if (gameState === 'rebounding') {
-                ball.x += ball.bounceVx;
-                ball.y += ball.bounceVy;
-                
-                if (ball.radius < ball.startRadius * 0.8) {
-                    ball.radius += 0.4;
-                }
-
-                ball.bounceVx *= 0.98;
-                ball.bounceVy *= 0.95;
-
-                if (ball.bounceVy < 0.8) {
-                    processResult(false);
-                }
+                ball.x += ball.bounceVx; ball.y += ball.bounceVy;
+                if (ball.radius < ball.startRadius * 0.8) ball.radius += 0.4;
+                ball.bounceVx *= 0.98; ball.bounceVy *= 0.95;
+                if (ball.bounceVy < 0.8) processResult(false);
             }
         }
 
+        // --- ARTISTIC RENDER GRAPHICS ---
         function draw() {
-            // 1. THE PITCH PERSPECTIVE
             let pitchGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            pitchGrad.addColorStop(0, '#0a230c'); 
-            pitchGrad.addColorStop(0.3, '#113b15');
-            pitchGrad.addColorStop(1, '#1e5e25');   
-            ctx.fillStyle = pitchGrad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            pitchGrad.addColorStop(0, '#0a230c'); pitchGrad.addColorStop(0.3, '#113b15'); pitchGrad.addColorStop(1, '#1e5e25');   
+            ctx.fillStyle = pitchGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Striped Grass Pattern
             ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
             for (let i = 0; i < 6; i++) {
                 if (i % 2 === 0) {
                     ctx.beginPath();
-                    let topY = goal.y + goal.h + (i * 40);
-                    let botY = goal.y + goal.h + ((i + 1) * 70);
-                    ctx.moveTo(0, topY);
-                    ctx.lineTo(canvas.width, topY);
-                    ctx.lineTo(canvas.width, botY);
-                    ctx.lineTo(0, botY);
+                    let topY = goal.y + goal.h + (i * 40); let botY = goal.y + goal.h + ((i + 1) * 70);
+                    ctx.moveTo(0, topY); ctx.lineTo(canvas.width, topY); ctx.lineTo(canvas.width, botY); ctx.lineTo(0, botY);
                     ctx.fill();
                 }
             }
 
-            // 2. STADIUM WHITE LINES
-            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-            ctx.lineWidth = 3;
-            
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(goal.x - 40, goal.y + goal.h);
-            ctx.lineTo(0, canvas.height - 50);
-            ctx.moveTo(goal.x + goal.w + 40, goal.y + goal.h);
-            ctx.lineTo(canvas.width, canvas.height - 50);
-            ctx.moveTo(0, canvas.height - 50);
-            ctx.lineTo(canvas.width, canvas.height - 50);
+            ctx.moveTo(goal.x - 40, goal.y + goal.h); ctx.lineTo(0, canvas.height - 50);
+            ctx.moveTo(goal.x + goal.w + 40, goal.y + goal.h); ctx.lineTo(canvas.width, canvas.height - 50);
+            ctx.moveTo(0, canvas.height - 50); ctx.lineTo(canvas.width, canvas.height - 50);
             ctx.stroke();
             
-            ctx.fillStyle = 'rgba(255,255,255,0.8)';
-            ctx.beginPath();
-            ctx.arc(canvas.width/2, canvas.height - 120, 6, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height - 120, 6, 0, Math.PI * 2); ctx.fill();
 
-            // 3. THE GOAL NET DEPTH
             let netShadow = ctx.createLinearGradient(0, goal.y, 0, goal.y + goal.h);
-            netShadow.addColorStop(0, 'rgba(0,0,0,0.6)');
-            netShadow.addColorStop(1, 'rgba(0,0,0,0.1)');
-            ctx.fillStyle = netShadow;
-            ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+            netShadow.addColorStop(0, 'rgba(0,0,0,0.6)'); netShadow.addColorStop(1, 'rgba(0,0,0,0.1)');
+            ctx.fillStyle = netShadow; ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
 
-            // Net Grid Lines
-            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-            ctx.lineWidth = 1;
-            let meshSize = 10;
-            for (let x = goal.x; x <= goal.x + goal.w; x += meshSize) {
-                ctx.beginPath(); ctx.moveTo(x, goal.y); ctx.lineTo(x, goal.y + goal.h); ctx.stroke();
-            }
-            for (let y = goal.y; y <= goal.y + goal.h; y += meshSize) {
-                ctx.beginPath(); ctx.moveTo(goal.x, y); ctx.lineTo(goal.x + goal.w, y); ctx.stroke();
-            }
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+            for (let x = goal.x; x <= goal.x + goal.w; x += 10) { ctx.beginPath(); ctx.moveTo(x, goal.y); ctx.lineTo(x, goal.y + goal.h); ctx.stroke(); }
+            for (let y = goal.y; y <= goal.y + goal.h; y += 10) { ctx.beginPath(); ctx.moveTo(goal.x, y); ctx.lineTo(goal.x + goal.w, y); ctx.stroke(); }
 
-            // Goalposts Frames
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 8;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(255,255,255,0.3)';
-            ctx.beginPath();
-            ctx.moveTo(goal.x, goal.y + goal.h);
-            ctx.lineTo(goal.x, goal.y); 
-            ctx.lineTo(goal.x + goal.w, goal.y); 
-            ctx.lineTo(goal.x + goal.w, goal.y + goal.h); 
-            ctx.stroke();
-            ctx.shadowBlur = 0; 
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.beginPath(); ctx.moveTo(goal.x, goal.y + goal.h); ctx.lineTo(goal.x, goal.y); ctx.lineTo(goal.x + goal.w, goal.y); ctx.lineTo(goal.x + goal.w, goal.y + goal.h); ctx.stroke();
 
-            // 4. BALL DROP SHADOW
-            ctx.fillStyle = 'rgba(0,0,0,0.35)';
-            ctx.beginPath();
-            let shadowY;
-            let shadowScale;
-            if (gameState === 'rebounding') {
-                shadowY = ball.y + 25; 
-                shadowScale = Math.max(0.3, (1 - (ball.bounceVy / 10)));
-            } else {
-                shadowY = ball.startY + ((goal.y + goal.h + 10) - ball.startY) * ball.progress;
-                shadowScale = 1 - (ball.progress * 0.4);
-            }
+            ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath();
+            let shadowY = (gameState === 'rebounding') ? ball.y + 25 : ball.startY + ((goal.y + goal.h + 10) - ball.startY) * ball.progress;
+            let shadowScale = (gameState === 'rebounding') ? Math.max(0.3, (1 - (ball.bounceVy / 10))) : 1 - (ball.progress * 0.4);
             ctx.ellipse(ball.x, shadowY, ball.radius * 1.1 * shadowScale, ball.radius * 0.4 * shadowScale, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // 5. GOALKEEPER DESIGN
-            let gkColor = selectedNation ? selectedNation.color : '#ff5722';
-            ctx.save();
-            ctx.translate(keeper.x, keeper.y);
+            // Set goalkeeper jersey matching the DEFENDING player's color scheme
+            let currentDefendingNation = (currentKicker === 1) ? player2Nation : player1Nation;
+            let gkColor = currentDefendingNation ? currentDefendingNation.color : '#ff5722';
+            
+            ctx.save(); ctx.translate(keeper.x, keeper.y);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 52, keeper.w * 0.6, 10, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#222'; ctx.fillRect(-18, 44, 10, 8); ctx.fillRect(8, 44, 10, 8);
+            ctx.fillStyle = '#fff'; ctx.fillRect(-16, 32, 7, 12); ctx.fillRect(9, 32, 7, 12);
+            ctx.fillStyle = '#111111'; ctx.fillRect(-18, 20, 36, 14);
+            ctx.fillStyle = gkColor; ctx.fillRect(-20, -15, 40, 35);
 
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath();
-            ctx.ellipse(0, 52, keeper.w * 0.6, 10, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Boots & Socks
-            ctx.fillStyle = '#222'; 
-            ctx.fillRect(-18, 44, 10, 8);
-            ctx.fillRect(8, 44, 10, 8);
-            ctx.fillStyle = '#fff'; 
-            ctx.fillRect(-16, 32, 7, 12);
-            ctx.fillRect(9, 32, 7, 12);
-
-            // Kit Shorts & Torso
-            ctx.fillStyle = '#111111'; 
-            ctx.fillRect(-18, 20, 36, 14);
-            ctx.fillStyle = gkColor;
-            ctx.fillRect(-20, -15, 40, 35);
-
-            // Dynamic Diving Arms
-            ctx.fillStyle = gkColor;
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
             if (gameState === 'shooting' || keeper.state === 'diving') {
-                ctx.fillRect(-32, -10, 12, 10); 
-                ctx.fillRect(20, -10, 12, 10);  
+                ctx.fillRect(-32, -10, 12, 10); ctx.fillRect(20, -10, 12, 10);  
             } else {
-                ctx.fillRect(-28, -5, 9, 22);
-                ctx.fillRect(19, -5, 9, 22);
+                ctx.fillRect(-28, -5, 9, 22); ctx.fillRect(19, -5, 9, 22);
             }
-
-            // Head and Face Elements
-            ctx.fillStyle = '#ffdbac';
-            ctx.beginPath();
-            ctx.arc(0, -26, 11, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#333';
-            ctx.fillRect(-8, -37, 16, 5);
-
+            ctx.fillStyle = '#ffdbac'; ctx.beginPath(); ctx.arc(0, -26, 11, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#333'; ctx.fillRect(-8, -37, 16, 5);
             ctx.restore();
 
-            // 6. SOCCER BALL WITH PANEL SPIN ENGINE
-            ctx.save();
-            ctx.translate(ball.x, ball.y);
-            
-            // Dynamic rotational physics transformation based on standard translation + curve spin force
-            let baseSpin = ball.progress * 4.5;
-            let curveSpin = (ball.spin * 0.05) * ball.progress; 
-            ctx.rotate(baseSpin + curveSpin);
-
-            ctx.fillStyle = '#ffffff';
-            ctx.strokeStyle = '#1a1a1a';
-            ctx.lineWidth = Math.max(1.5, ball.radius * 0.08);
-            ctx.beginPath();
-            ctx.arc(0, 0, Math.max(ball.radius, 3), 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+            ctx.save(); ctx.translate(ball.x, ball.y);
+            ctx.rotate((ball.progress * 4.5) + ((ball.spin * 0.05) * ball.progress));
+            ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = Math.max(1.5, ball.radius * 0.08);
+            ctx.beginPath(); ctx.arc(0, 0, Math.max(ball.radius, 3), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             
             ctx.fillStyle = '#1a1a1a';
             let r = ball.radius;
             if (r > 4) {
-                ctx.beginPath();
-                ctx.arc(0, 0, r * 0.32, 0, Math.PI * 2); 
-                ctx.fill();
-
-                ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-                ctx.lineWidth = Math.max(1, r * 0.05);
+                ctx.beginPath(); ctx.arc(0, 0, r * 0.32, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = Math.max(1, r * 0.05);
                 for (let a = 0; a < Math.PI * 2; a += (Math.PI * 2 / 5)) {
-                    ctx.beginPath();
-                    ctx.moveTo(Math.cos(a) * (r * 0.32), Math.sin(a) * (r * 0.32));
-                    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(Math.cos(a) * (r * 0.32), Math.sin(a) * (r * 0.32)); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); ctx.stroke();
                 }
             }
             ctx.restore();
 
-            // 7. RESULT INTERACTIVE TEXT
             if (gameState === 'result') {
-                ctx.fillStyle = feedbackColor;
-                ctx.font = 'bold 44px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.shadowBlur = 12;
-                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.fillStyle = feedbackColor; ctx.font = 'bold 44px sans-serif'; ctx.textAlign = 'center';
+                ctx.shadowBlur = 12; ctx.shadowColor = 'rgba(0,0,0,0.8)';
                 ctx.fillText(feedbackText, canvas.width / 2, canvas.height * 0.52);
                 ctx.shadowBlur = 0;
             }
@@ -796,30 +720,124 @@
         let feedbackText = "";
         let feedbackColor = "#fff";
 
+        // --- TOURNAMENT JUDGING ENGINE (UK FIFA RULES) ---
         function processResult(isGoal) {
             gameState = 'result';
+            let resultString = isGoal ? 'goal' : 'miss';
+
             if (isGoal) {
                 SoundFX.playGoal();
-                
-                score++;
-                streak++;
-                feedbackText = "GOAL!";
-                feedbackColor = "#4CD964";
-                
-                document.getElementById('uiScore').innerText = score;
-                document.getElementById('uiStreak').innerText = streak;
-                
-                setTimeout(() => {
-                    initEntities();
-                }, 1400);
+                feedbackText = "GOAL!"; feedbackColor = "#4CD964";
             } else {
-                SoundFX.stopMusic();     
-                SoundFX.playGameOver();  
-                
-                feedbackText = "SAVED!";
-                feedbackColor = "#FF3B30";
-                setTimeout(endGame, 1400);
+                SoundFX.playSave();
+                feedbackText = "SAVED!"; feedbackColor = "#FF3B30";
             }
+
+            // Append logs
+            if (currentKicker === 1) {
+                p1History.push(resultString);
+            } else {
+                p2History.push(resultString);
+            }
+
+            syncScoreboardDots();
+
+            // Run structural math evaluation check
+            setTimeout(() => {
+                evaluateMatchState();
+            }, 1400);
+        }
+
+        function syncScoreboardDots() {
+            let p1Goals = p1History.filter(r => r === 'goal').length;
+            let p2Goals = p2History.filter(r => r === 'goal').length;
+
+            document.getElementById('p1Score').innerText = p1Goals;
+            document.getElementById('p2Score').innerText = p2Goals;
+
+            // Generate HTML ticker arrays
+            let p1Html = "";
+            let maxDots = Math.max(5, p1History.length);
+            for(let i=0; i<maxDots; i++) {
+                let cl = "dot";
+                if(p1History[i] === 'goal') cl += " goal";
+                if(p1History[i] === 'miss') cl += " miss";
+                p1Html += `<div class="${cl}"></div>`;
+            }
+            document.getElementById('p1Dots').innerHTML = p1Html;
+
+            let p2Html = "";
+            maxDots = Math.max(5, p2History.length);
+            for(let i=0; i<maxDots; i++) {
+                let cl = "dot";
+                if(p2History[i] === 'goal') cl += " goal";
+                if(p2History[i] === 'miss') cl += " miss";
+                p2Html += `<div class="${cl}"></div>`;
+            }
+            document.getElementById('p2Dots').innerHTML = p2Html;
+        }
+
+        function evaluateMatchState() {
+            let p1Goals = p1History.filter(r => r === 'goal').length;
+            let p2Goals = p2History.filter(r => r === 'goal').length;
+
+            let p1ShotsTaken = p1History.length;
+            let p2ShotsTaken = p2History.length;
+
+            // Calculations based on standard 5-kick rule thresholds
+            if (!isSuddenDeath) {
+                let p1Remaining = 5 - p1ShotsTaken;
+                let p2Remaining = 5 - p2ShotsTaken;
+
+                // Scenario A: Player 1 has completely run out of catchable mathematical margins
+                if (p1Goals + p1Remaining < p2Goals) {
+                    endGame(2); return;
+                }
+                // Scenario B: Player 2 has completely run out of catchable mathematical margins
+                if (p2Goals + p2Remaining < p1Goals) {
+                    endGame(1); return;
+                }
+
+                // If both completed their matching sets of 5 kicks
+                if (p1ShotsTaken === 5 && p2ShotsTaken === 5) {
+                    if (p1Goals === p2Goals) {
+                        isSuddenDeath = true;
+                        currentRound = 6;
+                        currentKicker = 1;
+                        initEntities();
+                    } else {
+                        endGame(p1Goals > p2Goals ? 1 : 2);
+                    }
+                } else {
+                    // Step turn lifecycle forward
+                    advanceTurn();
+                }
+            } 
+            // Sudden Death Context Evaluation Loop
+            else {
+                // Evaluate paired round increments (Equal length checks)
+                if (p1ShotsTaken === p2ShotsTaken) {
+                    if (p1Goals !== p2Goals) {
+                        endGame(p1Goals > p2Goals ? 1 : 2);
+                    } else {
+                        currentRound++;
+                        currentKicker = 1;
+                        initEntities();
+                    }
+                } else {
+                    advanceTurn();
+                }
+            }
+        }
+
+        function advanceTurn() {
+            if (currentKicker === 1) {
+                currentKicker = 2;
+            } else {
+                currentKicker = 1;
+                if (!isSuddenDeath) currentRound++;
+            }
+            initEntities();
         }
 
         function gameLoop() {
@@ -831,39 +849,63 @@
         }
 
         function startGame() {
-            SoundFX.startMusic();
-
             document.getElementById('selectorScreen').style.display = 'none';
-            document.getElementById('uiTeam').innerText = selectedNation.tag + " " + selectedNation.name;
             
-            score = 0;
-            streak = 0;
-            document.getElementById('uiScore').innerText = score;
-            document.getElementById('uiStreak').innerText = streak;
-            
+            document.getElementById('p1Name').innerText = `P1: ${player1Nation.name}`;
+            document.getElementById('p2Name').innerText = `P2: ${player2Nation.name}`;
+
+            p1History = [];
+            p2History = [];
+            currentKicker = 1;
+            currentRound = 1;
+            isSuddenDeath = false;
+
+            syncScoreboardDots();
             initEntities();
             gameLoop();
         }
 
-        function endGame() {
+        function endGame(winner) {
             gameState = 'over';
-            document.getElementById('finalScoreText').innerText = `You scored ${score} goals for ${selectedNation.name}!`;
+            SoundFX.stopMusic();
+            SoundFX.playGameOver();
+
+            let p1Final = p1History.filter(r => r === 'goal').length;
+            let p2Final = p2History.filter(r => r === 'goal').length;
+
+            let winnerName = (winner === 1) ? player1Nation.name : player2Nation.name;
+            document.getElementById('winStatusText').innerText = `${winnerName.toUpperCase()} WINS!`;
+            document.getElementById('winStatusText').style.color = (winner === 1) ? "#f7b500" : "#5ac8fa";
+            
+            document.getElementById('finalScoreText').innerText = `Final Scoreline: ${p1Final} - ${p2Final} ${isSuddenDeath ? '(AET)' : ''}`;
             document.getElementById('gameOverScreen').style.display = 'flex';
         }
 
-        function showSelector() {
+        function resetToSelector() {
+            setupPhase = 1;
+            player1Nation = null;
+            player2Nation = null;
+            selectedNationTmp = null;
+            
+            selectionTitle.innerText = "PLAYER 1 CHOOSE";
+            selectionTitle.style.color = "#f7b500";
+            startBtn.disabled = true;
+            startBtn.style.opacity = "0.4";
+
             document.getElementById('gameOverScreen').style.display = 'none';
             document.getElementById('selectorScreen').style.display = 'flex';
+            buildSelectionGrid();
         }
 
-        resizeCanvas();
+        // Initialize App Grid Layout
+        buildSelectionGrid();
 
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker connected successfully.', reg))
-                    .catch(err => console.log('Service Worker connection blocked:', err));
+                    .then(reg => console.log('SW Registered.', reg))
+                    .catch(err => console.log('SW Registration Failed:', err));
             });
         }
     </script>
