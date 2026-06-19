@@ -573,16 +573,17 @@
                 baseKeeperSpeed = Math.min(baseKeeperSpeed, 5.2);
             }
 
-            // Adjusted keeper baseline Y to 240px to plant feet cleanly onto the pitch line
             keeper = {
                 x: canvas.width / 2,
+                baselineY: 240, 
                 y: 240,
                 w: 54, 
                 h: 70,
                 dir: Math.random() < 0.5 ? 1 : -1,
                 speed: baseKeeperSpeed, 
                 state: 'idling', 
-                targetX: canvas.width / 2
+                targetX: canvas.width / 2,
+                targetY: 240
             };
 
             gameState = 'aiming';
@@ -604,7 +605,7 @@
             }
         }
 
-        // --- CONTROL HANDLING ---
+        // --- CONTROL HANDLING & DYNAMIC CURVE ENGINE ---
         function handleStart(x, y) {
             if (gameState !== 'aiming') return;
             isTrackingSwipe = true;
@@ -633,10 +634,28 @@
             if (diffY < -40 && duration < 400) { 
                 SoundFX.playKick();
 
+                // Horizontal Target Scaling
                 ball.targetX = ball.startX + (diffX * 1.3);
-                ball.targetY = ball.startY + (diffY * 1.1);
-                ball.targetY = Math.max(goal.y + 10, Math.min(goal.y + goal.h - 10, ball.targetY));
 
+                // --- NON-LINEAR LOGARITHMIC HIGH-SHOT HEIGHT CURVE ---
+                let rawForceY = Math.abs(diffY) / duration; // Raw swipe velocity
+                let baselineGoalBottomY = goal.y + goal.h; 
+                let optimalShotZoneHeight = goal.h - 15;   // The sweet-spot region inside crossbar
+
+                if (rawForceY < 2.0) {
+                    // Linear mapping for slow/normal controlled lower shots
+                    ball.targetY = baselineGoalBottomY - (rawForceY * (optimalShotZoneHeight / 2.0));
+                } else if (rawForceY >= 2.0 && rawForceY < 4.8) {
+                    // Logarithmic curve: dampens fast velocity to expand accuracy along the top crossbar line
+                    let logarithmicBuffer = Math.log(rawForceY - 1.0) * 35;
+                    ball.targetY = (baselineGoalBottomY - optimalShotZoneHeight) + 12 - logarithmicBuffer;
+                } else {
+                    // Over-swiped: Break past the compression threshold into a risky out-of-bounds miss
+                    let excessVelocityForce = rawForceY - 4.8;
+                    ball.targetY = goal.y - 12 - (excessVelocityForce * 18);
+                }
+
+                // Side Spline Deviations
                 let maxDeviation = 0;
                 for (let i = 1; i < swipePoints.length - 1; i++) {
                     let p = swipePoints[i];
@@ -648,14 +667,29 @@
 
                 ball.spin = maxDeviation * -1.8; 
                 ball.targetX += (ball.spin * 0.4);
-                ball.targetX = Math.max(goal.x - 35, Math.min(goal.x + goal.w + 35, ball.targetX));
+                
+                // Allow extreme misses to sail horizontally out of bounds if angled poorly
+                if (ball.targetY >= goal.y) {
+                    ball.targetX = Math.max(goal.x - 35, Math.min(goal.x + goal.w + 35, ball.targetX));
+                }
 
                 ball.progress = 0;
                 gameState = 'shooting';
                 keeper.state = 'diving';
                 
+                // Keeper Defensive Target Engine Tracking
                 let errorMargin = (Math.random() * 80 - 40); 
                 keeper.targetX = Math.max(goal.x + 10, Math.min(goal.x + goal.w - 10, ball.targetX + errorMargin));
+
+                // VERTICAL KEEPER LIFT CALCULATION:
+                // Tracks the ball height. If the shot is high and inside the keeper's lateral workspace, they jump upwards.
+                if (ball.targetY < keeper.baselineY - 40) {
+                    let calculatedLift = (keeper.baselineY - ball.targetY) * 0.55;
+                    // Cap vertical lift at 65px so the top corners remain entirely out of reach
+                    keeper.targetY = keeper.baselineY - Math.min(calculatedLift, 65);
+                } else {
+                    keeper.targetY = keeper.baselineY;
+                }
             }
         }
 
@@ -666,7 +700,7 @@
         canvas.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
         canvas.addEventListener('mouseup', () => handleEnd());
 
-        // --- ENGINE LOGIC ---
+        // --- UPDATE STEP TICK ---
         function update() {
             if (gameState === 'aiming') {
                 keeper.x += keeper.speed * keeper.dir;
@@ -674,6 +708,7 @@
                     keeper.dir *= -1;
                     keeper.x = keeper.x - keeper.w/2 < goal.x ? goal.x + keeper.w/2 : goal.x + goal.w - keeper.w/2;
                 }
+                keeper.y = keeper.baselineY;
             }
 
             if (gameState === 'shooting') {
@@ -688,13 +723,15 @@
                 ball.radius = ball.startRadius + (ball.targetRadius - ball.startRadius) * ball.progress;
 
                 if (keeper.state === 'diving') {
-                    keeper.x += (keeper.targetX - keeper.x) * 0.03; 
+                    keeper.x += (keeper.targetX - keeper.x) * 0.055; 
+                    keeper.y += (keeper.targetY - keeper.y) * 0.055; // Multi-axis translation interpolation
                 }
 
                 if (ball.progress >= 1) {
                     let hitKeeperWidth = keeper.w / 2 + 5; 
-                    // Calculate proximity along shot interception plane
-                    if (ball.x >= keeper.x - hitKeeperWidth && ball.x <= keeper.x + hitKeeperWidth && ball.y >= keeper.y - 35 && ball.y <= keeper.y + 35) {
+                    
+                    // Box-check calculation mapping onto the keeper's active physics space
+                    if (ball.x >= keeper.x - hitKeeperWidth && ball.x <= keeper.x + hitKeeperWidth && ball.y >= keeper.y - 45 && ball.y <= keeper.y + 45) {
                         SoundFX.playSave();
                         gameState = 'rebounding';
                         let hitOffset = (ball.x - keeper.x) / hitKeeperWidth; 
@@ -720,7 +757,7 @@
             }
         }
 
-        // --- GRAPHIC RENDERS ---
+        // --- DRAW RENDERS ---
         function draw() {
             let pitchGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             pitchGrad.addColorStop(0, '#0a230c'); pitchGrad.addColorStop(0.3, '#113b15'); pitchGrad.addColorStop(1, '#1e5e25');   
@@ -771,8 +808,8 @@
             }
             
             ctx.save(); ctx.translate(keeper.x, keeper.y);
-            // Render goalkeeper shadow, kit, and structural features relative to ground alignment
-            ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0, 30, keeper.w * 0.6, 8, 0, 0, Math.PI * 2); ctx.fill();
+            // Render goalkeeper body graphics anchored cleanly relative to spatial physics translation vectors
+            ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0, 30 + (keeper.baselineY - keeper.y), keeper.w * 0.6, 8, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#222'; ctx.fillRect(-18, 22, 10, 8); ctx.fillRect(8, 22, 10, 8);
             ctx.fillStyle = '#fff'; ctx.fillRect(-16, 10, 7, 12); ctx.fillRect(9, 10, 7, 12);
             ctx.fillStyle = '#111111'; ctx.fillRect(-18, -2, 36, 14);
@@ -814,7 +851,7 @@
         let feedbackText = "";
         let feedbackColor = "#fff";
 
-        // --- LIFE CYCLES & JUDGING ---
+        // --- LIFE CYCLES & RESULTS ---
         function processResult(isGoal) {
             gameState = 'result';
 
@@ -823,7 +860,7 @@
                 feedbackText = "GOAL!"; feedbackColor = "#4CD964";
             } else {
                 SoundFX.playSave();
-                feedbackText = "SAVED!"; feedbackColor = "#FF3B30";
+                feedbackText = "MISS!"; feedbackColor = "#FF3B30";
             }
 
             if (activeGameMode === "1P") {
@@ -834,7 +871,7 @@
                     setTimeout(() => { initEntities(); }, 1400);
                 } else {
                     SoundFX.stopMusic(); SoundFX.playGameOver();
-                    feedbackText = "SAVED!"; feedbackColor = "#FF3B30";
+                    feedbackText = "MATCH OVER"; feedbackColor = "#FF3B30";
                     setTimeout(() => {
                         gameState = 'over';
                         document.getElementById('winStatusText').innerText = "OUT OF THE CUP!";
