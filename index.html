@@ -562,15 +562,22 @@
                 curveOffsetX: 0   
             };
 
-            let baseKeeperSpeed = 2.4;
+            // --- BALANCED INITIAL KEEPER SPEED COMPUTATION ---
+            let initialSpeed = 2.0;
+            let isFifthShotOrSuddenDeath = false;
+
             if (activeGameMode === "1P") {
-                let scalingFactor = Math.log1p(streak) * 0.35; 
-                baseKeeperSpeed += scalingFactor;
-                baseKeeperSpeed = Math.min(baseKeeperSpeed, 5.0);
+                // Linear scaling that reaches maximum velocity caps exactly at a 100 streak
+                let progressFactor = Math.min(streak, 100) / 100;
+                initialSpeed = 2.0 + (progressFactor * 3.2); // Scales from 2.0 to a crisp 5.2 max
             } else {
-                let scalingFactor = Math.min(currentRound * 0.25, 2.5);
-                baseKeeperSpeed += scalingFactor;
-                baseKeeperSpeed = Math.min(baseKeeperSpeed, 5.2);
+                // 2-Player Baseline Speed Balancing
+                initialSpeed = 2.0 + Math.min((currentRound - 1) * 0.3, 2.2);
+
+                let totalShotsTaken = (currentKicker === 1) ? p1History.length : p2History.length;
+                if (totalShotsTaken === 4 || isSuddenDeath) {
+                    isFifthShotOrSuddenDeath = true;
+                }
             }
 
             keeper = {
@@ -580,10 +587,16 @@
                 w: 54, 
                 h: 70,
                 dir: Math.random() < 0.5 ? 1 : -1,
-                speed: baseKeeperSpeed, 
+                speed: initialSpeed,
+                baseSpeed2P: initialSpeed, // Store regular rate as fallback anchor
                 state: 'idling', 
                 targetX: canvas.width / 2,
-                targetY: 240
+                targetY: 240,
+                // Psych-out mind game state containers
+                isPsychOutActive: isFifthShotOrSuddenDeath,
+                psychOutTimer: 0,
+                psychOutInterval: 90, // Swap states roughly every 1.5 seconds (90 ticks @ 60 FPS)
+                isFrozen: false
             };
 
             gameState = 'aiming';
@@ -643,14 +656,11 @@
                 let optimalShotZoneHeight = goal.h - 15;   // The sweet-spot region inside crossbar
 
                 if (rawForceY < 2.0) {
-                    // Linear mapping for slow/normal controlled lower shots
                     ball.targetY = baselineGoalBottomY - (rawForceY * (optimalShotZoneHeight / 2.0));
                 } else if (rawForceY >= 2.0 && rawForceY < 4.8) {
-                    // Logarithmic curve: dampens fast velocity to expand accuracy along the top crossbar line
                     let logarithmicBuffer = Math.log(rawForceY - 1.0) * 35;
                     ball.targetY = (baselineGoalBottomY - optimalShotZoneHeight) + 12 - logarithmicBuffer;
                 } else {
-                    // Over-swiped: Break past the compression threshold into a risky out-of-bounds miss
                     let excessVelocityForce = rawForceY - 4.8;
                     ball.targetY = goal.y - 12 - (excessVelocityForce * 18);
                 }
@@ -668,7 +678,6 @@
                 ball.spin = maxDeviation * -1.8; 
                 ball.targetX += (ball.spin * 0.4);
                 
-                // Allow extreme misses to sail horizontally out of bounds if angled poorly
                 if (ball.targetY >= goal.y) {
                     ball.targetX = Math.max(goal.x - 35, Math.min(goal.x + goal.w + 35, ball.targetX));
                 }
@@ -677,15 +686,18 @@
                 gameState = 'shooting';
                 keeper.state = 'diving';
                 
-                // Keeper Defensive Target Engine Tracking
+                // Reset psych out modifiers immediately when shot triggers to dive standardly
+                keeper.isFrozen = false;
+                if (activeGameMode === "2P") {
+                    keeper.speed = keeper.baseSpeed2P;
+                }
+
                 let errorMargin = (Math.random() * 80 - 40); 
                 keeper.targetX = Math.max(goal.x + 10, Math.min(goal.x + goal.w - 10, ball.targetX + errorMargin));
 
-                // VERTICAL KEEPER LIFT CALCULATION:
-                // Tracks the ball height. If the shot is high and inside the keeper's lateral workspace, they jump upwards.
+                // Vertical Lift Calculation
                 if (ball.targetY < keeper.baselineY - 40) {
                     let calculatedLift = (keeper.baselineY - ball.targetY) * 0.55;
-                    // Cap vertical lift at 65px so the top corners remain entirely out of reach
                     keeper.targetY = keeper.baselineY - Math.min(calculatedLift, 65);
                 } else {
                     keeper.targetY = keeper.baselineY;
@@ -703,7 +715,32 @@
         // --- UPDATE STEP TICK ---
         function update() {
             if (gameState === 'aiming') {
-                keeper.x += keeper.speed * keeper.dir;
+                // --- 2P FIFTH SHOT PSYCH OUT RUNTIME ---
+                if (activeGameMode === "2P" && keeper.isPsychOutActive) {
+                    keeper.psychOutTimer++;
+                    if (keeper.psychOutTimer >= keeper.psychOutInterval) {
+                        keeper.psychOutTimer = 0;
+                        
+                        let rngDecision = Math.random();
+                        if (rngDecision < 0.25) {
+                            // Freeze briefly
+                            keeper.isFrozen = true;
+                        } else {
+                            keeper.isFrozen = false;
+                            // Randomize pacing speeds dynamically
+                            keeper.speed = keeper.baseSpeed2P * (0.4 + Math.random() * 1.2);
+                            // Flip spatial direction pathways occasionally
+                            if (Math.random() < 0.5) keeper.dir *= -1;
+                        }
+                    }
+                }
+
+                // Horizontal movement updates
+                if (!keeper.isFrozen) {
+                    keeper.x += keeper.speed * keeper.dir;
+                }
+
+                // Goalpost Boundary collisions
                 if (keeper.x - keeper.w/2 < goal.x || keeper.x + keeper.w/2 > goal.x + goal.w) {
                     keeper.dir *= -1;
                     keeper.x = keeper.x - keeper.w/2 < goal.x ? goal.x + keeper.w/2 : goal.x + goal.w - keeper.w/2;
@@ -724,13 +761,12 @@
 
                 if (keeper.state === 'diving') {
                     keeper.x += (keeper.targetX - keeper.x) * 0.055; 
-                    keeper.y += (keeper.targetY - keeper.y) * 0.055; // Multi-axis translation interpolation
+                    keeper.y += (keeper.targetY - keeper.y) * 0.055; 
                 }
 
                 if (ball.progress >= 1) {
                     let hitKeeperWidth = keeper.w / 2 + 5; 
                     
-                    // Box-check calculation mapping onto the keeper's active physics space
                     if (ball.x >= keeper.x - hitKeeperWidth && ball.x <= keeper.x + hitKeeperWidth && ball.y >= keeper.y - 45 && ball.y <= keeper.y + 45) {
                         SoundFX.playSave();
                         gameState = 'rebounding';
@@ -787,7 +823,7 @@
             ctx.fillStyle = netShadow; ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
 
             ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
-            for (let x = goal.x; x <= goal.x + goal.w; x += 10) { ctx.beginPath(); ctx.moveTo(x, goal.y); ctx.lineTo(x, goal.y + goal.h); ctx.stroke(); }
+            for (let x = goal.x; x <= goal.x + goal.w; x += 10) { ctx.beginPath(); ctx.moveTo(x, goal.y); ctx.lineTo(x, goal.y + goal.h); stroke(); }
             for (let y = goal.y; y <= goal.y + goal.h; y += 10) { ctx.beginPath(); ctx.moveTo(goal.x, y); ctx.lineTo(goal.x + goal.w, y); ctx.stroke(); }
 
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -808,7 +844,6 @@
             }
             
             ctx.save(); ctx.translate(keeper.x, keeper.y);
-            // Render goalkeeper body graphics anchored cleanly relative to spatial physics translation vectors
             ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0, 30 + (keeper.baselineY - keeper.y), keeper.w * 0.6, 8, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#222'; ctx.fillRect(-18, 22, 10, 8); ctx.fillRect(8, 22, 10, 8);
             ctx.fillStyle = '#fff'; ctx.fillRect(-16, 10, 7, 12); ctx.fillRect(9, 10, 7, 12);
@@ -1012,3 +1047,4 @@
     </script>
 </body>
 </html>
+                // Reset psych out
