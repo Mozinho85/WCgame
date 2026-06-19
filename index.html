@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>World Cup Penalty Shootout</title>
+    <title>World Cup Penalty Shootout 2026</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#124e28">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+    <meta name="google-adsense-account" content="ca-pub-9853366444571043">
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9853366444571043" crossorigin="anonymous"></script>
 
     <style>
         body {
@@ -19,28 +21,32 @@
             background-color: #0b1a0e;
             color: #fff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
-            touch-action: none;
+            overflow-x: hidden;
+            overflow-y: auto;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
+            box-sizing: border-box;
+            padding-bottom: 40px;
         }
         
         #gameContainer {
             position: relative;
             width: 100%;
             max-width: 400px;
-            height: 100%;
+            height: 100vh;
             max-height: 750px;
             background: #1e3f20; 
             overflow: hidden;
             box-shadow: 0 0 30px rgba(0,0,0,0.7);
             display: flex;
             flex-direction: column;
+            margin-top: 10px;
+            margin-bottom: 25px;
+            border-radius: 12px;
         }
 
-        /* Adjusted wrapper so canvas doesn't bleed into the ad zone */
         #gameWorld {
             position: relative;
             width: 100%;
@@ -103,7 +109,7 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
             width: 100%;
-            max-height: 320px; /* Snugger height to keep UI clean away from ads */
+            max-height: 320px; 
             overflow-y: auto;
             padding: 10px;
             box-sizing: border-box;
@@ -279,7 +285,6 @@
             animation: pulse 1.5s infinite alternate;
         }
 
-        /* 🌟 SYMPATHETIC BOTTOM AD BLOCK CONTAINER 🌟 */
         .ad-container {
             width: 100%;
             height: 60px;
@@ -290,6 +295,31 @@
             border-top: 2px solid rgba(255, 255, 255, 0.1);
             z-index: 20;
         }
+
+        .adsense-seo-content {
+            width: 100%;
+            max-width: 650px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-sizing: border-box;
+            padding: 30px;
+            margin: 20px auto;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        .adsense-seo-content h2, .adsense-seo-content h3 {
+            color: #f7b500;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        .adsense-seo-content h2 { font-size: 22px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;}
+        .adsense-seo-content h3 { font-size: 16px; }
+        .adsense-seo-content ul { padding-left: 20px; }
+        .adsense-seo-content li { margin-bottom: 8px; }
+        .adsense-seo-content code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #5ac8fa; }
 
         @keyframes pulse {
             from { opacity: 0.6; }
@@ -303,7 +333,6 @@
         
         <div id="gameWorld">
             <div id="audioDebug">Audio Status: Initializing...</div>
-
             <audio id="bgMusic" src="bgm.mp3" loop preload="auto"></audio>
 
             <div id="splashScreen" class="screen">
@@ -356,14 +385,44 @@
         <div class="ad-container">
             <ins class="adsbygoogle"
                  style="display:inline-block;width:320px;height:50px"
-                 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-                 data-ad-slot="YYYYYYYYYY"></ins>
+                 data-ad-client="ca-pub-9853366444571043"
+                 data-ad-slot="7829401122"></ins>
             <script>
-                 // Boots up the specific inline Ad unit once the DOM clears
                  (adsbygoogle = window.adsbygoogle || []).push({});
             </script>
         </div>
 
+    </div>
+
+    <div class="adsense-seo-content">
+        <h2>World Cup Penalty Shootout 2026 - Game Manual & Specifications</h2>
+        <p>Welcome to the ultimate retro HTML5 2D canvas football experience. Engineered with custom physics vectors, dynamic scale calculations, and progressive algorithm difficulty, this game brings intense penalty action straight to your browser container.</p>
+        
+        <h3>Game Modes & Mechanics</h3>
+        <ul>
+            <li><strong>1 Player Arcade Mode:</strong> Test your individual execution against an adaptively accelerating AI goalkeeper. Score as many consecutive penalty kicks as possible to build a streak multiplier. Missing a single shot wraps up your session instantly.</li>
+            <li><strong>2 Player Local Mode:</strong> Grab a companion on the same device and challenge them to a classic international penalty format. Take alternating shots across five complete tournament rounds. If scores remain tied after five rounds, the engine automatically switches to a sudden death system.</li>
+            <li><strong>The "Psych-Out" Feature:</strong> In 2 Player mode, whenever a player takes their high-stakes fifth penalty or is trying to stay alive in Sudden Death, the goalkeeper enters a psych-out routine. The keeper can change dynamic sprint vectors, fake left or right, or momentarily freeze to trick the kicker.</li>
+        </ul>
+
+        <h3>How to Play & Ball Controls</h3>
+        <p>This web application interprets custom touch events and mouse clicks to map vector velocity onto the match ball:</p>
+        <ul>
+            <li>Click or touch and hold directly on the football at its penalty spot.</li>
+            <li>Quickly swipe upwards towards the target framework.</li>
+            <li><strong>To Curve the Ball:</strong> Swipe in an explicit arc structure. The distance between your swipe pathway and a direct straight path line is continuously measured to calculate ball rotation <code>spin</code>, bending the ball's flight path mid-air.</li>
+            <li>Be careful with your launch power—swiping with excessive speed or force can loft the ball clean over the crossbar!</li>
+        </ul>
+
+        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 30px 0;">
+
+        <h2>Privacy Policy</h2>
+        <p>Last updated: June 2026</p>
+        <p>This website serves a standalone interactive game container hosted securely via public distribution branches. We prioritize total user transparency and do not collect, maintain, or store private personal user data profiles.</p>
+        
+        <h3>Third-Party Ad Networks & Cookies</h3>
+        <p>This application utilizes Google AdSense monetization layers to serve inline contextual marketing elements. Google AdSense utilizes advanced system tracking files and identifiers, including <strong>cookies</strong>, to distribute optimized ad experiences based on previous navigation paths across external domains.</p>
+        <p>Users maintain full operational control over tracking definitions and can choose to decline individual cookie files or completely disable third-party vendor tracking setups by visiting the official Google Ads Settings page or adjusting their local browser security preferences.</p>
     </div>
 
     <script>
@@ -464,7 +523,6 @@
             }
         };
 
-        // --- ENGINE SYSTEMS CONFIGS ---
         const nations = [
             { name: 'Argentina', tag: 'ARG', color: '#74ACDF' },
             { name: 'Brazil', tag: 'BRA', color: '#009c3b' },
@@ -652,7 +710,6 @@
 
         function handleStart(x, y) {
             if (gameState !== 'aiming') return;
-            // Map inputs safely to account for inner bounding frame dimensions
             let rect = canvas.getBoundingClientRect();
             let touchX = x - rect.left;
             let touchY = y - rect.top;
@@ -745,7 +802,6 @@
         canvas.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
         canvas.addEventListener('mouseup', () => handleEnd());
 
-        // --- UPDATE STEP TICK ---
         function update() {
             if (gameState === 'aiming') {
                 if (activeGameMode === "2P" && keeper.isPsychOutActive) {
@@ -819,7 +875,6 @@
             }
         }
 
-        // --- DRAW RENDERS ---
         function draw() {
             let pitchGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             pitchGrad.addColorStop(0, '#0a230c'); pitchGrad.addColorStop(0.3, '#113b15'); pitchGrad.addColorStop(1, '#1e5e25');   
@@ -916,7 +971,6 @@
         let feedbackText = "";
         let feedbackColor = "#fff";
 
-        // --- LIFE CYCLES & RESULTS ---
         function processResult(isGoal) {
             gameState = 'result';
 
@@ -943,8 +997,6 @@
                         document.getElementById('winStatusText').style.color = "#FF3B30";
                         document.getElementById('finalScoreText').innerText = `You scored ${score} penalties for ${player1Nation.name}.`;
                         document.getElementById('gameOverScreen').style.display = 'flex';
-                        
-                        // 🌟 AD TRIGGER WINDOW: Call AdSense overlay here if anchor ads are configured 🌟
                     }, 1400);
                 }
             } else {
@@ -1063,8 +1115,6 @@
             document.getElementById('winStatusText').style.color = (winner === 1) ? "#f7b500" : "#5ac8fa";
             document.getElementById('finalScoreText').innerText = `Final Scoreline: ${p1Final} - ${p2Final} ${isSuddenDeath ? '(AET)' : ''}`;
             document.getElementById('gameOverScreen').style.display = 'flex';
-            
-            // 🌟 AD TRIGGER WINDOW: Call AdSense overlay here if anchor ads are configured 🌟
         }
 
         function gameLoop() {
